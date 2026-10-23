@@ -1,189 +1,189 @@
-# NeuroVista — Three-Paradigm Brain Tumor Segmentation with Reference-Free Quality Control
+# NeuroVista — Üç Paradigmalı Beyin Tümörü Segmentasyonu ve Referanssız Kalite Kontrolü
 
-**English** · [Türkçe](README.tr.md)
+**Türkçe** · [English](README.en.md)
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.5-EE4C2C?style=flat-square&logo=pytorch&logoColor=white)](https://pytorch.org/)
 [![MONAI](https://img.shields.io/badge/MONAI-1.6-2496ED?style=flat-square)](https://monai.io/)
 [![OpenVINO](https://img.shields.io/badge/OpenVINO-FP32-00549A?style=flat-square&logo=intel&logoColor=white)](https://docs.openvino.ai/)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![License](https://img.shields.io/badge/License-All%20rights%20reserved-lightgrey?style=flat-square)](LICENSE)
+[![Lisans](https://img.shields.io/badge/Lisans-T%C3%BCm%20haklar%C4%B1%20sakl%C4%B1-lightgrey?style=flat-square)](LICENSE)
 
-NeuroVista segments glioma sub-regions — necrotic core (**NCR**), peritumoral edema (**ED**) and enhancing tumor (**ET**) — in 3D from multi-modal brain MRI (**T1, T1ce, T2, FLAIR**). It trains three deep learning architectures from three different design paradigms under **one identical protocol**, combines them with an ensemble that was **locked on validation data before the test set was ever touched**, and uses the **agreement between the models** to flag likely failures **without any ground-truth mask**.
+NeuroVista, çok modlu beyin MR'ından (**T1, T1ce, T2, FLAIR**) glioma alt bölgelerini — nekrotik çekirdek (**NCR**), peritümöral ödem (**ED**) ve kontrast tutan tümör (**ET**) — üç boyutlu olarak ayrıştırır. Üç farklı tasarım paradigmasından üç derin öğrenme modelini **birebir aynı protokolle** eğitir, bunları **test kümesine hiç dokunulmadan validation'da kilitlenmiş** bir ensemble ile birleştirir ve **modeller arası uyumu** kullanarak olası başarısız çıkarımları **referans maske olmadan** işaretler.
 
 > [!NOTE]
-> **This is a showcase repository.** It presents the architecture, engineering and results of a private research project. The scientific core (pre-processing, model architectures and ensemble logic), the training pipeline and the trained weights are **not included**, so the code here is meant to be read, not run. See [What is in this repository](#what-is-in-this-repository).
+> **Bu bir vitrin deposudur.** Private bir araştırma projesinin mimarisini, mühendisliğini ve sonuçlarını gösterir. Bilimsel çekirdek (ön işleme, model mimarileri, ensemble mantığı), eğitim hattı ve eğitilmiş ağırlıklar **bu depoda yoktur**; buradaki kod okunmak içindir, çalıştırılmak için değil. Bkz. [Bu depoda neler var](#bu-depoda-neler-var).
 
 > [!IMPORTANT]
-> Research prototype. Not a medical device and not for clinical diagnosis or treatment decisions. See [Disclaimer](#disclaimer).
+> Araştırma prototipidir. Tıbbi cihaz değildir; klinik tanı veya tedavi kararında kullanılamaz. Bkz. [Sorumluluk reddi](#sorumluluk-reddi).
 
 ---
 
-## Contents
+## İçindekiler
 
-- [The problem](#the-problem)
-- [Approach](#approach)
-- [Results](#results)
-- [System architecture](#system-architecture)
-- [What is in this repository](#what-is-in-this-repository)
-- [Engineering practices](#engineering-practices)
-- [Datasets and references](#datasets-and-references)
-- [Author](#author)
-- [License](#license)
-- [Disclaimer](#disclaimer)
+- [Problem](#problem)
+- [Yaklaşım](#yaklaşım)
+- [Sonuçlar](#sonuçlar)
+- [Sistem mimarisi](#sistem-mimarisi)
+- [Bu depoda neler var](#bu-depoda-neler-var)
+- [Mühendislik uygulamaları](#mühendislik-uygulamaları)
+- [Veri setleri ve kaynaklar](#veri-setleri-ve-kaynaklar)
+- [Geliştirici](#geliştirici)
+- [Lisans](#lisans)
+- [Sorumluluk reddi](#sorumluluk-reddi)
 
 ---
 
-## The problem
+## Problem
 
-Glioma segmentation drives radiotherapy planning, surgical margins and volumetric follow-up, but manual 3D contouring of 240×240×155-voxel, four-channel volumes is slow and varies between experts. Three gaps motivated this project:
+Glioma segmentasyonu radyoterapi planlamasının, cerrahi sınırların ve hacimsel takibin temelidir. Ancak 240×240×155 voksellik, dört kanallı hacimlerde elle 3B konturlama yavaştır ve uzmanlar arasında değişkendir. Projeyi üç boşluk yönlendirdi:
 
-1. **Unfair architecture comparisons.** CNNs and Vision Transformers are often compared with different training budgets, augmentation pipelines or pre-processing. It then becomes unclear whether a difference comes from the architecture or from the recipe.
-2. **Silent failures.** On data from other institutions a model can fail without warning. At inference time there is no expert mask, so a calibrated, reference-free quality signal is needed.
-3. **Training–serving skew.** Models trained in notebooks must run on local workstations — with a GPU or CPU-only — with exactly the same pre-processing and acceptable latency.
+1. **Adil olmayan mimari karşılaştırmaları.** CNN'ler ve Vision Transformer'lar çoğu zaman farklı eğitim bütçeleri, veri artırma hatları ya da ön işlemelerle karşılaştırılır. Bu durumda farkın mimariden mi, reçeteden mi geldiği belirsizleşir.
+2. **Sessiz hatalar.** Başka kurumların verisinde model uyarı vermeden başarısız olabilir. Çıkarım anında uzman maskesi yoktur; referans gerektirmeyen, kalibre bir kalite sinyaline ihtiyaç vardır.
+3. **Eğitim–çıkarım uyumsuzluğu.** Notebook'larda eğitilen modeller yerel iş istasyonlarında — GPU'lu ya da yalnız CPU'lu — birebir aynı ön işlemeyle ve kabul edilebilir sürede çalışmalıdır.
 
-## Approach
+## Yaklaşım
 
-| Code | Model | Paradigm | Building block | Parameters |
+| Kod | Model | Paradigma | Yapı taşı | Parametre |
 |:---:|---|---|---|:---:|
-| M1 | **Residual 3D U-Net** | Classical local convolution (CNN) | Residual units, 3×3×3 convolutions | ~4.8 M |
-| M2 | **SwinUNETR** | Hierarchical self-attention (Vision Transformer) | 3D shifted-window self-attention encoder + CNN decoder | ~15.7 M |
-| M3 | **MedNeXt-S (k=3)** | Modern convolution (ConvNeXt design) | Transformer design principles without attention: depthwise convolution, inverted-bottleneck MLP | ~5.6 M |
+| M1 | **Residual 3D U-Net** | Klasik yerel evrişim (CNN) | Residual birimler, 3×3×3 evrişim | ~4.8 M |
+| M2 | **SwinUNETR** | Hiyerarşik öz-dikkat (Vision Transformer) | 3B kaydırılmış pencereli öz-dikkat kodlayıcı + CNN çözücü | ~15.7 M |
+| M3 | **MedNeXt-S (k=3)** | Modern evrişim (ConvNeXt tasarımı) | Dikkat olmadan Transformer tasarım ilkeleri: derinlemesine evrişim, ters darboğaz MLP | ~5.6 M |
 
-The third model was chosen by a documented, measured comparison of four candidates rather than by leaderboard score: [docs/UCUNCU_MODEL_SECIMI.md](docs/UCUNCU_MODEL_SECIMI.md) (in Turkish).
+Üçüncü model, liderlik tablosu skoruna göre değil; dört adayın belgelenmiş ve ölçülmüş karşılaştırmasıyla seçildi: [docs/UCUNCU_MODEL_SECIMI.md](docs/UCUNCU_MODEL_SECIMI.md).
 
-- **Same protocol for all three.** All models were trained from scratch on Kaggle (2× NVIDIA T4) with the same data pipeline, loss, patch size and epoch budget. Model-specific tricks that would favour only one architecture were deliberately left out.
-- **Pre-registered evaluation.** The evaluation plan was written and locked before the third model was trained and before any test result existed. Every later change went into a dated deviation log. Checkpoint selection, test-time augmentation, the ensemble method and post-processing were all chosen **on validation only**, sealed in a lock file with SHA-256 hashes, and the **test set was used exactly once**. Method: [docs/DEGERLENDIRME_YONTEMI.md](docs/DEGERLENDIRME_YONTEMI.md) (in Turkish).
-- **Reference-free quality control.** The *agreement score* is the mean pairwise Dice between the three models' WT, TC and ET masks. It needs no ground truth, so it can be computed in deployment as a warning signal.
-- **External validation.** The locked system was then tested once, with nothing re-tuned, on two independent institutions (Nigeria and the United States).
+- **Üçüne aynı protokol.** Bütün modeller Kaggle'da (2× NVIDIA T4) sıfırdan; aynı veri akışı, aynı kayıp, aynı yama boyutu ve aynı epoch bütçesiyle eğitildi. Yalnız bir mimariye fayda sağlayacak özel ayarlar bilerek alınmadı.
+- **Ön-kayıtlı değerlendirme.** Değerlendirme planı, üçüncü model eğitilmeden ve hiçbir test sonucu yokken yazılıp kilitlendi. Sonraki her değişiklik tarihli bir sapma kaydına yazıldı. Checkpoint seçimi, test zamanı veri artırma, ensemble yöntemi ve son işlem **yalnız validation'da** seçildi, SHA-256 ile bir kilit dosyasına mühürlendi ve **test kümesi tek bir kez** kullanıldı. Yöntem: [docs/DEGERLENDIRME_YONTEMI.md](docs/DEGERLENDIRME_YONTEMI.md).
+- **Referanssız kalite kontrolü.** *Uyum skoru*, üç modelin WT, TC ve ET maskeleri arasındaki ikili Dice'ların ortalamasıdır. Referans gerektirmez; bu yüzden kullanım sırasında uyarı sinyali olarak hesaplanabilir.
+- **Harici doğrulama.** Kilitli sistem, hiçbir ayar yeniden seçilmeden, iki bağımsız kurumun (Nijerya ve ABD) verisinde tek seferde sınandı.
 
-**Regions:** WT = NCR ∪ ED ∪ ET · TC = NCR ∪ ET · ET = ET.
+**Bölgeler:** WT = NCR ∪ ED ∪ ET · TC = NCR ∪ ET · ET = ET.
 
-## Results
+## Sonuçlar
 
-All numbers below are generated from archived machine records in the private repository and checked by tests there; none are typed by hand.
+Aşağıdaki bütün sayılar private depodaki arşivlenmiş makine kayıtlarından üretilir ve orada testlerle denetlenir; hiçbiri elle yazılmaz.
 
-### Locked internal test (BraTS 2021, 126 cases)
+### Kilitli iç test (BraTS 2021, 126 vaka)
 
-| Model | WT | TC | ET | Patient-level mean [95% CI] | HD95 WT / TC / ET (mm) |
+| Model | WT | TC | ET | Hasta-bazlı ort. [%95 GA] | HD95 WT / TC / ET (mm) |
 |---|:---:|:---:|:---:|:---:|:---:|
-| **Ensemble (primary)** | **0.9415** | **0.9170** | **0.8908** | **0.9161** [0.899–0.931] | 3.91 / 3.23 / 2.74 |
+| **Ensemble (birincil)** | **0.9415** | **0.9170** | **0.8908** | **0.9161** [0.899–0.931] | 3.91 / 3.23 / 2.74 |
 | SwinUNETR | 0.9397 | 0.9141 | 0.8890 | 0.9140 [0.896–0.929] | 3.80 / 3.23 / 2.64 |
 | MedNeXt-S | 0.9372 | 0.9121 | 0.8896 | 0.9125 [0.894–0.928] | 4.32 / 3.28 / 2.78 |
 | 3D U-Net | 0.9386 | 0.9119 | 0.8820 | 0.9105 [0.894–0.925] | 3.99 / 4.03 / 2.84 |
 
-*ET mean over cases whose reference contains ET. Agreement score vs. Dice: Spearman ρ = 0.754; failed cases (Dice < 0.80): 9, AUROC 0.843.*
+*ET ortalaması, referansında ET bulunan vakalar üzerinden. Uyum skoru–Dice: Spearman ρ = 0.754; başarısız vaka (Dice < 0.80): 9, AUROC 0.843.*
 
-### Effect of the protocol (v1 → v2, same unified evaluation)
+### Protokolün etkisi (v1 → v2, aynı birleşik değerlendirme)
 
-| Comparison | Difference [95% CI] | Wilcoxon p (Holm) |
+| Karşılaştırma | Fark [%95 GA] | Wilcoxon p (Holm) |
 |---|:---:|:---:|
 | 3D U-Net: v2 − v1 | +0.0114 [+0.0086, +0.0144] | 4.5e-15 |
 | SwinUNETR: v2 − v1 | +0.0096 [+0.0055, +0.0143] | 4.7e-11 |
 | v2 ensemble − v1 SwinUNETR | +0.0137 [+0.0088, +0.0189] | 8.8e-15 |
 | v2 ensemble − v1 3D U-Net | +0.0217 [+0.0180, +0.0261] | 1.3e-20 |
 
-### External validation (locked settings, single run)
+### Harici doğrulama (kilitli ayarlar, tek koşu)
 
-| Cohort | Analysis | n | Ensemble patient-level [95% CI] | WT | TC | ET | Best single model | Δ vs. internal test | Agreement AUROC |
+| Kohort | Analiz | n | Ensemble hasta-bazlı [%95 GA] | WT | TC | ET | En iyi tekil model | İç testten fark | Uyum AUROC |
 |---|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| BraTS-Africa glioma (Nigeria) | primary | 95 | 0.8402 [0.808–0.869] | 0.9192 | 0.8039 | 0.7976 | MedNeXt-S 0.8422 | −0.076 | 0.888 |
-| UTSW-Glioma (USA), expert-corrected masks | primary | 241 | 0.7756 [0.746–0.805] | 0.9216 | 0.6448 | 0.8656 | MedNeXt-S 0.7725 | −0.141 | 0.978 |
-| BraTS-Africa, non-glioma tumors | exploratory | 51 | 0.7984 [0.744–0.846] | 0.8534 | 0.7675 | 0.7860 | MedNeXt-S 0.7938 | −0.118 | 0.985 |
+| BraTS-Africa glioma (Nijerya) | birincil | 95 | 0.8402 [0.808–0.869] | 0.9192 | 0.8039 | 0.7976 | MedNeXt-S 0.8422 | −0.076 | 0.888 |
+| UTSW-Glioma (ABD), uzman düzeltmeli maskeler | birincil | 241 | 0.7756 [0.746–0.805] | 0.9216 | 0.6448 | 0.8656 | MedNeXt-S 0.7725 | −0.141 | 0.978 |
+| BraTS-Africa, glioma dışı tümörler | keşifsel | 51 | 0.7984 [0.744–0.846] | 0.8534 | 0.7675 | 0.7860 | MedNeXt-S 0.7938 | −0.118 | 0.985 |
 
-*UTSW labels non-enhancing tumor as edema, whereas BraTS counts it as tumor core; this taxonomy difference directly lowers TC. Excluding the 36 cases whose reference has no TC raises the patient-level mean to 0.835 (post-hoc, not pre-registered). UTSW cases with undocumented label codes were reported separately in a WT-only sensitivity analysis (121 cases, ensemble WT 0.8706 [0.852–0.887]).*
+*UTSW kontrast tutmayan tümörü ödem olarak etiketler, BraTS ise tümör çekirdeğine sayar; bu taksonomi farkı TC'yi doğrudan düşürür. Referansında TC olmayan 36 vaka çıkarıldığında hasta-bazlı ortalama 0.835 olur (post-hoc, ön-kayıtlı değil). Belgelenmemiş etiket kodu içeren UTSW vakaları ayrı bir yalnız-WT duyarlılık analizinde raporlandı (121 vaka, ensemble WT 0.8706 [0.852–0.887]).*
 
-### Inference speed and OpenVINO parity (one full volume)
+### Çıkarım hızı ve OpenVINO paritesi (tek tam hacim)
 
-| Model | GPU (web, FP16) | CPU PyTorch FP32 | CPU OpenVINO FP32 | OpenVINO speed-up | Label agreement (OpenVINO) |
+| Model | GPU (web, FP16) | CPU PyTorch FP32 | CPU OpenVINO FP32 | OpenVINO hızlanması | Etiket uyumu (OpenVINO) |
 |---|:---:|:---:|:---:|:---:|:---:|
-| 3D U-Net | 0.7 s | 2.9 s | 1.2 s | 2.42× | 1.0000000 |
-| SwinUNETR | 2.0 s | 80.0 s | 19.0 s | 4.22× | 0.9999997 |
-| MedNeXt-S | 2.2 s | 72.3 s | 46.4 s | 1.56× | 1.0000000 |
+| 3D U-Net | 0.7 sn | 2.9 sn | 1.2 sn | 2.42× | 1.0000000 |
+| SwinUNETR | 2.0 sn | 80.0 sn | 19.0 sn | 4.22× | 0.9999997 |
+| MedNeXt-S | 2.2 sn | 72.3 sn | 46.4 sn | 1.56× | 1.0000000 |
 
-*GPU: NVIDIA GeForce RTX 3050 Laptop (4 GB), web speed mode; end-to-end 6.5 s. Web CPU mode end-to-end 87.6 s. Locked test and external results were produced with PyTorch FP32.*
+*GPU: NVIDIA GeForce RTX 3050 Laptop (4 GB), web hız modu; uçtan uca 6.5 sn. Web CPU modunda uçtan uca 87.6 sn. Kilitli test ve harici sonuçlar PyTorch FP32 ile üretildi.*
 
-![Patient-level Dice by cohort: three models and the locked ensemble](charts/v2/fig1_dice_by_cohort_en.png)
-![Agreement score vs. ensemble Dice](charts/v2/fig2_agreement_vs_dice_en.png)
-![Tumor volume vs. Dice](charts/v2/fig3_volume_vs_dice_en.png)
+![Kohortlara göre hasta-bazlı Dice: üç model ve kilitli ensemble](charts/v2/fig1_dice_by_cohort.png)
+![Uyum skoru – ensemble Dice](charts/v2/fig2_agreement_vs_dice.png)
+![Tümör hacmi – Dice](charts/v2/fig3_volume_vs_dice.png)
 
-**Key findings**
+**Temel bulgular**
 
-1. The locked three-model ensemble reached a patient-level mean Dice of **0.9161** on the internal test and outperformed every single model in paired tests.
-2. Re-training the same architectures under the controlled, equal-budget protocol gained about 1 Dice point over the earlier version (p < 10⁻¹⁰).
-3. Without seeing any ground truth, the agreement score detected poor segmentations with **AUROC 0.843** internally and **0.888–0.985** on external cohorts.
-4. The external drop is explained by concrete causes — lower field strength (1.5 T in BraTS-Africa) and different institutional labelling conventions (UTSW) — rather than by an unexplained collapse.
+1. Kilitli üçlü ensemble iç testte hasta-bazlı **0.9161** ortalama Dice'a ulaştı ve eşleştirilmiş testlerde her tekil modeli geride bıraktı.
+2. Aynı mimarilerin kontrollü, eşit bütçeli protokolle yeniden eğitilmesi önceki sürüme göre yaklaşık 1 Dice puanı kazandırdı (p < 10⁻¹⁰).
+3. Uyum skoru, hiçbir referans görmeden düşük başarılı segmentasyonları iç testte **AUROC 0.843**, harici kohortlarda **0.888–0.985** ile yakaladı.
+4. Harici düşüş açıklanamayan bir çöküşle değil, somut nedenlerle açıklanıyor: düşük saha gücü (BraTS-Africa'da 1.5 T) ve kurumların farklı etiketleme kuralları (UTSW).
 
-## System architecture
+## Sistem mimarisi
 
 ```mermaid
 flowchart TD
-    U["NIfTI upload<br/>T1 · T1ce · T2 · FLAIR (+ optional reference)"] --> V["services/uploads<br/>name matching · size & space checks · NaN rejection · safe ZIP"]
-    V --> P["🔒 Pre-processing<br/>identical to the training pipeline"]
-    P --> M["🔒 Three models<br/>sliding-window inference<br/>GPU: CUDA FP16 · CPU: OpenVINO FP32"]
-    M --> E["🔒 Locked ensemble<br/>+ consensus + agreement score"]
-    E --> S["services/session<br/>job queue · session store"]
-    S --> A["api/ + static/<br/>slices · 3D scene · PDF/PNG report · NIfTI mask export"]
+    U["NIfTI yükleme<br/>T1 · T1ce · T2 · FLAIR (+ isteğe bağlı referans)"] --> V["services/uploads<br/>ad eşleştirme · boyut ve uzay denetimi · NaN reddi · güvenli ZIP"]
+    V --> P["🔒 Ön işleme<br/>eğitim hattıyla aynı"]
+    P --> M["🔒 Üç model<br/>kayan pencereyle çıkarım<br/>GPU: CUDA FP16 · CPU: OpenVINO FP32"]
+    M --> E["🔒 Kilitli ensemble<br/>+ konsensüs + uyum skoru"]
+    E --> S["services/session<br/>iş kuyruğu · oturum kaydı"]
+    S --> A["api/ + static/<br/>kesitler · 3B sahne · PDF/PNG rapor · NIfTI maske"]
 ```
 
-- **Single source of truth.** The web service and the desktop app contain no pre-processing or ensemble code of their own; both call the same core. A case gives the same mask in both interfaces.
-- **Training–serving parity.** Pre-processing and the label decision are defined in one place and shared with the training pipeline; parity is guarded by tests in the private repository.
-- **Integrity on start-up.** The service only loads the current model set if the SHA-256 hashes of the weights and of the ensemble lock match the record.
-- **Hardware paths.** CUDA FP16 on GPU; on CPU, models whose ONNX export passed the parity check run on OpenVINO FP32, the rest on PyTorch.
+- **Tek doğruluk kaynağı.** Web servisi ve masaüstü uygulaması kendi ön işleme ya da ensemble kodunu taşımaz; ikisi de aynı çekirdeği çağırır. Bir vaka iki arayüzde de aynı maskeyi verir.
+- **Eğitim–çıkarım paritesi.** Ön işleme ve etiket kararı tek yerde tanımlıdır ve eğitim hattıyla paylaşılır; parite private depoda testlerle korunur.
+- **Açılışta bütünlük.** Servis, ağırlıkların ve ensemble kilidinin SHA-256 özetleri kayıtla eşleşmezse güncel model setini yüklemez.
+- **Donanım yolları.** GPU'da CUDA FP16; CPU'da ONNX paritesi doğrulanmış modeller OpenVINO FP32 ile, diğerleri PyTorch ile.
 
-Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · REST API: [docs/API_ENDPOINTS.md](docs/API_ENDPOINTS.md) (in Turkish).
+Ayrıntı: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · REST API: [docs/API_ENDPOINTS.md](docs/API_ENDPOINTS.md).
 
-**Interfaces:** a FastAPI web workstation (landing page, analysis workspace with eight synchronized panels, WebGL2 3D scene, report and mask export) and a CustomTkinter + PyVista desktop application.
+**Arayüzler:** FastAPI web iş istasyonu (tanıtım sayfası, sekiz eşzamanlı panelli analiz alanı, WebGL2 3B sahne, rapor ve maske dışa aktarımı) ve CustomTkinter + PyVista masaüstü uygulaması.
 
-## What is in this repository
+## Bu depoda neler var
 
-| Included | Not included (private) |
+| Var | Yok (private) |
 |---|---|
-| Web service: `main.py`, `api/`, `services/`, `visualization.py` | 🔒 Scientific core: pre-processing, architectures, ensemble, metrics |
-| Web interface: `static/` (HTML, CSS, JavaScript, WebGL2 scene) | 🔒 Training and evaluation pipeline, notebooks, data split |
-| Core-independent tests and their CI | 🔒 Trained weights, ensemble lock and weight registry |
-| `docker/Dockerfile.web`, `requirements.txt` | 🔒 Desktop application, OpenVINO export, external-validation pipeline |
-| Architecture, API, model-selection and evaluation-method documents | 🔒 Raw logs, per-patient records, manuscript and technical report |
-| Result figures | MRI data (never redistributed) |
+| Web servisi: `main.py`, `api/`, `services/`, `visualization.py` | 🔒 Bilimsel çekirdek: ön işleme, mimariler, ensemble, metrikler |
+| Web arayüzü: `static/` (HTML, CSS, JavaScript, WebGL2 sahnesi) | 🔒 Eğitim ve değerlendirme hattı, notebook'lar, veri bölünümü |
+| Çekirdekten bağımsız testler ve CI'ı | 🔒 Eğitilmiş ağırlıklar, ensemble kilidi ve ağırlık kaydı |
+| `docker/Dockerfile.web`, `requirements.txt` | 🔒 Masaüstü uygulaması, OpenVINO dışa aktarımı, harici doğrulama hattı |
+| Mimari, API, model seçimi ve değerlendirme yöntemi belgeleri | 🔒 Ham günlükler, hasta bazlı kayıtlar, makale ve teknik rapor |
+| Sonuç şekilleri | MR verisi (hiçbir zaman yeniden dağıtılmaz) |
 
-**How this repository stays in sync.** Nothing here is copied by hand. A script in the private repository builds this showcase from an explicit per-file allowlist, reads files from a commit (so untracked files such as weights or `.env` files cannot leak), blocks a deny-list of core paths, and scans every file for secrets and project-specific core terms; any hit stops the export and nothing is written. It runs automatically when the private `main` branch passes CI. [PROVENANCE.md](PROVENANCE.md) lists the source commit and a SHA-256 for every file.
+**Bu depo nasıl güncel kalıyor?** Buradaki hiçbir dosya elle kopyalanmaz. Private depodaki bir betik bu vitrini dosya dosya yazılmış bir izin listesinden üretir. Dosyaları bir commit'ten okur; bu yüzden git'e girmemiş ağırlık ya da `.env` gibi dosyalar sızamaz. Çekirdek yollarını yasak listeyle engeller ve her dosyayı gizli bilgi ile projeye özgü kalp ifadeleri için tarar. Herhangi bir bulguda dışa aktarım durur ve hiçbir dosya yazılmaz. Private `main` dalı CI'dan geçince bu süreç kendiliğinden çalışır. [PROVENANCE.md](PROVENANCE.md), kaynak commit'i ve her dosyanın SHA-256 özetini listeler.
 
-## Engineering practices
+## Mühendislik uygulamaları
 
-- **Pre-registration and locks:** evaluation plan before results; selections sealed with SHA-256; single-use test set; dated deviation log; post-hoc analyses labelled as such.
-- **Statistics:** paired Wilcoxon signed-rank tests with Holm correction; bootstrap 95% confidence intervals (10 000 resamples).
-- **Testing and CI:** in the private repository, unit, integration, web end-to-end and real-browser (Playwright) tests plus a Docker image build and container smoke test on every push; this repository runs lint and the core-independent tests.
-- **Security of the web service:** optional constant-time access token (HttpOnly, SameSite=Strict cookie or Bearer header); limits on upload size, unpacked ZIP size and member count, and volume size; temporary files deleted after every analysis; no internal paths or stack traces in client errors; a single analysis at a time with bounded history and session memory.
-- **Reproducibility:** every number in documents and pages comes from one generated results file; figures are generated from per-patient records.
+- **Ön-kayıt ve kilitler:** plan sonuçtan önce; seçimler SHA-256 ile mühürlü; tek kullanımlık test kümesi; tarihli sapma kaydı; post-hoc analizler açıkça etiketli.
+- **İstatistik:** Holm düzeltmeli eşleştirilmiş Wilcoxon işaretli sıra testleri; bootstrap %95 güven aralıkları (10 000 yeniden örnekleme).
+- **Test ve CI:** private depoda her gönderimde birim, entegrasyon, web uçtan uca ve gerçek tarayıcı (Playwright) testleri ile Docker imajı derleme ve konteyner duman testi; bu depoda kod denetimi ve çekirdekten bağımsız testler.
+- **Web servisi güvenliği:** isteğe bağlı, sabit zamanlı karşılaştırmalı erişim belirteci (HttpOnly, SameSite=Strict çerez ya da Bearer başlığı); yükleme boyutu, açılmış ZIP boyutu ve üye sayısı ile hacim boyutu sınırları; her analizden sonra silinen geçici dosyalar; istemci hatalarında iç yol ya da yığın izi yok; aynı anda tek analiz, sınırlı iş geçmişi ve oturum belleği.
+- **Yeniden üretilebilirlik:** belgelerdeki ve sayfalardaki her sayı tek bir üretilmiş sonuç dosyasından gelir; şekiller hasta bazlı kayıtlardan üretilir.
 
-## Datasets and references
+## Veri setleri ve kaynaklar
 
-**Datasets**
+**Veri setleri**
 
-1. **BraTS 2021** — Baid, U., et al. (2021). *The RSNA-ASNR-MICCAI BraTS 2021 Benchmark on Brain Tumor Segmentation and Radiogenomic Classification.* [arXiv:2107.02314](https://arxiv.org/abs/2107.02314). · Menze, B. H., et al. (2015). *The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS).* IEEE TMI 34(10). · Bakas, S., et al. (2017). *Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features.* Scientific Data 4, 170117.
-2. **BraTS-Africa** — Adewole, M., et al. (2023). *The BraTS Challenge 2023: Glioma Segmentation in Sub-Saharan Africa Patient Population (BraTS-Africa).* [arXiv:2305.19369](https://arxiv.org/abs/2305.19369). TCIA, doi:[10.7937/v8h6-8x67](https://doi.org/10.7937/v8h6-8x67).
-3. **UTSW-Glioma** — Reddy, D., et al. (2026). *UTSW-Glioma (Version 1)* [Data set]. The Cancer Imaging Archive, doi:[10.7937/DFAE-1B86](https://doi.org/10.7937/DFAE-1B86).
+1. **BraTS 2021** — Baid, U., vd. (2021). *The RSNA-ASNR-MICCAI BraTS 2021 Benchmark on Brain Tumor Segmentation and Radiogenomic Classification.* [arXiv:2107.02314](https://arxiv.org/abs/2107.02314). · Menze, B. H., vd. (2015). *The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS).* IEEE TMI 34(10). · Bakas, S., vd. (2017). *Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features.* Scientific Data 4, 170117.
+2. **BraTS-Africa** — Adewole, M., vd. (2023). *The BraTS Challenge 2023: Glioma Segmentation in Sub-Saharan Africa Patient Population (BraTS-Africa).* [arXiv:2305.19369](https://arxiv.org/abs/2305.19369). TCIA, doi:[10.7937/v8h6-8x67](https://doi.org/10.7937/v8h6-8x67).
+3. **UTSW-Glioma** — Reddy, D., vd. (2026). *UTSW-Glioma (Version 1)* [Veri seti]. The Cancer Imaging Archive, doi:[10.7937/DFAE-1B86](https://doi.org/10.7937/DFAE-1B86).
 
-External cohorts were run from publicly available copies of these collections on Kaggle. No imaging data is included in this repository.
+Harici kohortlar, bu koleksiyonların Kaggle'daki kamuya açık kopyaları üzerinden çalıştırıldı. Bu depoda hiçbir görüntü verisi yoktur.
 
-**Methods and software**
+**Yöntemler ve yazılım**
 
-- Ronneberger, O., et al. (2015). *U-Net.* MICCAI · Kerfoot, E., et al. (2018). *Left-Ventricle Quantification Using Residual U-Net.* STACOM.
-- Hatamizadeh, A., et al. (2022). *Swin UNETR.* BrainLes 2021. [arXiv:2201.01266](https://arxiv.org/abs/2201.01266).
-- Roy, S., et al. (2023). *MedNeXt.* MICCAI. [arXiv:2303.09975](https://arxiv.org/abs/2303.09975).
-- Isensee, F., et al. (2021). *nnU-Net.* Nature Methods 18 · Isensee, F., et al. (2024). *nnU-Net Revisited.* MICCAI. [arXiv:2404.09556](https://arxiv.org/abs/2404.09556).
-- Cardoso, M. J., et al. (2022). *MONAI.* [arXiv:2211.02701](https://arxiv.org/abs/2211.02701) · Intel *OpenVINO™ Toolkit* · PyTorch · FastAPI.
+- Ronneberger, O., vd. (2015). *U-Net.* MICCAI · Kerfoot, E., vd. (2018). *Left-Ventricle Quantification Using Residual U-Net.* STACOM.
+- Hatamizadeh, A., vd. (2022). *Swin UNETR.* BrainLes 2021. [arXiv:2201.01266](https://arxiv.org/abs/2201.01266).
+- Roy, S., vd. (2023). *MedNeXt.* MICCAI. [arXiv:2303.09975](https://arxiv.org/abs/2303.09975).
+- Isensee, F., vd. (2021). *nnU-Net.* Nature Methods 18 · Isensee, F., vd. (2024). *nnU-Net Revisited.* MICCAI. [arXiv:2404.09556](https://arxiv.org/abs/2404.09556).
+- Cardoso, M. J., vd. (2022). *MONAI.* [arXiv:2211.02701](https://arxiv.org/abs/2211.02701) · Intel *OpenVINO™ Toolkit* · PyTorch · FastAPI.
 
-## Author
+## Geliştirici
 
-**Halit Kılıç** — Department of Computer Engineering, Selçuk University · Academic advisor: Assoc. Prof. Dr. Onur İnan, Selçuk University.
+**Halit Kılıç** — Bilgisayar Mühendisliği Bölümü, Selçuk Üniversitesi · Akademik danışman: Doç. Dr. Onur İnan, Selçuk Üniversitesi.
 
-For questions or access requests, please contact me through my GitHub profile.
+Sorular ve erişim talepleri için GitHub profilim üzerinden iletişime geçebilirsiniz.
 
-## License
+## Lisans
 
-Copyright © 2026 Halit Kılıç. **All rights reserved.** This repository is published for viewing and evaluation only. No permission is granted to use, copy, modify or distribute any part of it without prior written permission. See [LICENSE](LICENSE). Third-party datasets, papers and libraries cited above remain under their own licenses.
+Telif hakkı © 2026 Halit Kılıç. **Tüm hakları saklıdır.** Bu depo yalnız görüntüleme ve değerlendirme amacıyla yayımlanmıştır. Önceden yazılı izin alınmadan herhangi bir bölümünün kullanılması, kopyalanması, değiştirilmesi veya dağıtılması serbest değildir. Bkz. [LICENSE](LICENSE). Yukarıda anılan üçüncü taraf veri setleri, yayınlar ve kütüphaneler kendi lisanslarına tabidir.
 
-## Disclaimer
+## Sorumluluk reddi
 
-NeuroVista is a prototype developed solely for academic research and software-engineering validation. It is not a medical device (not CE or FDA approved). Its segmentation masks, sub-region volumes, probability maps, 3D models and agreement scores must not be used to diagnose, plan radiotherapy or make surgical decisions; all outputs require independent review by qualified medical professionals.
+NeuroVista yalnız akademik araştırma ve yazılım mühendisliği doğrulaması amacıyla geliştirilmiş bir prototiptir. Tıbbi cihaz değildir (CE veya FDA onayı yoktur). Ürettiği segmentasyon maskeleri, alt bölge hacimleri, olasılık haritaları, 3B modeller ve uyum skorları tanı koymak, radyoterapi planlamak veya cerrahi karar vermek için kullanılamaz; bütün çıktılar nitelikli tıp uzmanlarının bağımsız değerlendirmesini gerektirir.
