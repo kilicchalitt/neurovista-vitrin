@@ -17,6 +17,8 @@ NeuroVista, çok modlu beyin MR'ından (**T1, T1ce, T2, FLAIR**) glioma alt böl
 > [!IMPORTANT]
 > Araştırma prototipidir. Tıbbi cihaz değildir; klinik tanı veya tedavi kararında kullanılamaz. Bkz. [Sorumluluk reddi](#sorumluluk-reddi).
 
+![NeuroVista tanıtım sayfası](images/landing.png)
+
 ---
 
 ## İçindekiler
@@ -134,6 +136,14 @@ flowchart TD
 Ayrıntı: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · REST API: [docs/API_ENDPOINTS.md](docs/API_ENDPOINTS.md).
 
 **Arayüzler:** FastAPI web iş istasyonu (tanıtım sayfası, sekiz eşzamanlı panelli analiz alanı, WebGL2 3B sahne, rapor ve maske dışa aktarımı) ve CustomTkinter + PyVista masaüstü uygulaması.
+
+**Analiz alanı:** dört modalite yüklendikten sonra ensemble ana maskesi, orijinal MR, model konsensüsü, tümör olasılığı, referans maske ve üç modelin tahmini aynı kesitte yan yana gösterilir (örnek vaka: herkese açık BraTS 2021 `BraTS2021_00495`, GPU web modu).
+
+![Analiz alanı: sekiz eşzamanlı panel](images/analysis.png)
+
+**3B sahne:** beyin yüzeyi ve NCR / ED / ET katmanları tarayıcıda WebGL2 ile çizilir; seçilen kesit 2B görüntüyle eşleşir.
+
+![3B sahne ve eşleşen MR kesiti](images/scene3d.png)
 
 ## Bu depoda neler var
 

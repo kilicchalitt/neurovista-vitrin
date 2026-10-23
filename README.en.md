@@ -17,6 +17,8 @@ NeuroVista segments glioma sub-regions — necrotic core (**NCR**), peritumoral 
 > [!IMPORTANT]
 > Research prototype. Not a medical device and not for clinical diagnosis or treatment decisions. See [Disclaimer](#disclaimer).
 
+![NeuroVista landing page (interface in Turkish)](images/landing.png)
+
 ---
 
 ## Contents
@@ -133,7 +135,15 @@ flowchart TD
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · REST API: [docs/API_ENDPOINTS.md](docs/API_ENDPOINTS.md) (in Turkish).
 
-**Interfaces:** a FastAPI web workstation (landing page, analysis workspace with eight synchronized panels, WebGL2 3D scene, report and mask export) and a CustomTkinter + PyVista desktop application.
+**Interfaces:** a FastAPI web workstation (landing page, analysis workspace with eight synchronized panels, WebGL2 3D scene, report and mask export) and a CustomTkinter + PyVista desktop application. The interface language is Turkish.
+
+**Analysis workspace:** after the four modalities are uploaded, the ensemble mask, the original MRI, model consensus, tumor probability, the reference mask and each model's prediction are shown side by side on the same slice (example: public BraTS 2021 case `BraTS2021_00495`, GPU web mode).
+
+![Analysis workspace: eight synchronized panels](images/analysis.png)
+
+**3D scene:** the brain surface and the NCR / ED / ET layers are rendered in the browser with WebGL2; the selected slice matches the 2D view.
+
+![3D scene with the matching MRI slice](images/scene3d.png)
 
 ## What is in this repository
 
