@@ -1,0 +1,6 @@
+# Vitrin kod denetimi: ana projedeki ayarla aynı kurallar (pyflakes + sözdizimi).
+target-version = "py310"
+line-length = 130
+
+[lint]
+select = ["F", "E9"]

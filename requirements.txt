@@ -1,0 +1,36 @@
+# NeuroVista 3D Brain Tumor Segmentation Dependencies
+# Sabitlenmiş ve Doğrulanmış Sürümler (Python 3.10 / 3.11)
+
+# KURULUM (iki adım, sırası önemli):
+#   pip install -r requirements.txt
+#   pip install --no-deps monai==1.6.0
+#
+# Neden iki adım: monai 1.6.0 meta verisi torch>=2.8 ister; proje ise ≥528 sürücülü
+# GPU'larla uyum için torch 2.5.1+cu121 üzerinde doğrulanmıştır (kilitli sonuçlar bu
+# ortamda üretildi). Birlikte çözümlenemedikleri için MONAI bağımlılıksız kurulur.
+# torch/torchvision +cu121 sürümleri PyPI'da değil PyTorch dizinindedir (aşağıdaki satır).
+# Docker CPU imajı torch'u CPU dizininden kurar (docker/Dockerfile.web).
+# Masaüstü arayüzü: requirements-desktop.txt · Test araçları: requirements-dev.txt
+--extra-index-url https://download.pytorch.org/whl/cu121
+
+# Temel Derin Öğrenme & Medikal AI Motorları
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+# monai==1.6.0  -> yukarıdaki ikinci adımla, --no-deps
+openvino==2026.3.0
+onnx==1.22.0
+einops==0.8.2
+
+# Tıbbi Görüntüleme & Bilimsel Hesaplama Kütüphaneleri
+nibabel==5.4.2
+numpy==2.4.6
+scipy==1.17.1
+scikit-image==0.26.0
+matplotlib==3.11.1
+Pillow==12.3.0
+
+# Web Servisi, Asenkron API & İletişim
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
+requests==2.34.2

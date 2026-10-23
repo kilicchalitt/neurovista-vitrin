@@ -1,0 +1,35 @@
+# Showcase CI: lint and the tests that do not need the private core or model weights.
+# The full test suite (core, training parity, web end-to-end, browser, Docker) runs in the private repository.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ruff · pytest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install numpy==2.4.6 pytest==8.4.2 ruff==0.17.1
+
+      - name: Lint (ruff)
+        run: python -m ruff check .
+
+      - name: Tests (pytest)
+        run: python -m pytest -q -p no:cacheprovider tests

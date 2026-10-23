@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>404 — Sayfa Bulunamadı | NeuroVista</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <script>
+    try { const t = localStorage.getItem('neurovista-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) { /* depolama kapalı */ }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@600&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* Tanıtım ve analiz sayfalarıyla aynı dil. Tema: uygulamada seçilen (neurovista-theme), yoksa sistem tercihi. */
+    :root {
+      color-scheme: dark;
+      --bg: #000000;
+      --surface: #18191b;
+      --ink: #ffffff;
+      --muted: #acb4bf;
+      --accent: #1a7cf5;
+      --cyan: #38d6f5;
+      font-family: 'Hanken Grotesk', system-ui, sans-serif;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) { color-scheme: light; --bg: #ffffff; --surface: #f2f3f5; --ink: #0b0c0e; --muted: #555d68; --accent: #1268d8; --cyan: #0284c7; }
+    }
+    :root[data-theme="light"] { color-scheme: light; --bg: #ffffff; --surface: #f2f3f5; --ink: #0b0c0e; --muted: #555d68; --accent: #1268d8; --cyan: #0284c7; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; display: flex; flex-direction: column; background: var(--surface); color: var(--ink); }
+    header { height: 80px; padding: 0 40px; display: flex; align-items: center; background: var(--bg); }
+    .brand { display: inline-flex; align-items: center; gap: 10px; color: inherit; text-decoration: none; font-size: 24px; font-weight: 600; letter-spacing: -0.03em; }
+    .brand i { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #0891b2, #2563eb 55%, #6d5df6); }
+    .brand svg { width: 24px; height: 24px; }
+    main { flex: 1; display: grid; place-items: center; padding: 96px 24px; text-align: center; background: var(--bg); border-radius: 0 0 40px 40px; }
+    .code { font-size: 18px; font-weight: 600; color: var(--cyan); margin-bottom: 12px; }
+    h1 { font-family: 'Darker Grotesque', 'Hanken Grotesk', sans-serif; font-weight: 600; font-size: 48px; line-height: 1.1; letter-spacing: -0.02em; }
+    p { margin: 16px auto 32px; max-width: 520px; font-size: 18px; line-height: 1.6; color: var(--muted); }
+    .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn { display: inline-flex; padding: 8px 16px; border-radius: 32px; font-size: 18px; font-weight: 600; text-decoration: none; }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-plain { color: var(--ink); }
+    footer { padding: 28px 40px; font-size: 13px; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="brand">
+      <i aria-hidden="true">
+        <svg viewBox="0 0 32 32">
+          <g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 7.6c-1.9-1.7-5.3-1.3-6.5 1.1-2.3.2-3.6 2.4-2.9 4.4-1.6 1.2-1.6 3.7 0 4.9-.6 2.2 1 4.3 3.2 4.3.9 2 3.5 2.7 5.2 1.3"/>
+            <path d="M16 7.6c1.9-1.7 5.3-1.3 6.5 1.1 2.3.2 3.6 2.4 2.9 4.4 1.6 1.2 1.6 3.7 0 4.9.6 2.2-1 4.3-3.2 4.3-.9 2-3.5 2.7-5.2 1.3"/>
+            <path d="M16 7.6v16M11.2 12.6l2.6 2.3M20.8 12.6l-2.6 2.3M11.6 18.6h2.4M20.4 18.6H18"/>
+          </g>
+          <g fill="currentColor"><circle cx="11.2" cy="12.6" r="1.5"/><circle cx="20.8" cy="12.6" r="1.5"/><circle cx="11.6" cy="18.6" r="1.5"/><circle cx="20.4" cy="18.6" r="1.5"/></g>
+        </svg>
+      </i>
+      NeuroVista
+    </a>
+  </header>
+  <main>
+    <div>
+      <div class="code">404</div>
+      <h1>Bu sayfa bulunamadı</h1>
+      <p>Ulaşmaya çalıştığınız tıbbi analiz rotası veya dosya mevcut değil ya da taşınmış olabilir.</p>
+      <div class="actions">
+        <a href="/analysis" class="btn btn-accent">Analiz Konsolunu Aç</a>
+        <a href="/" class="btn btn-plain">Ana sayfaya dön</a>
+      </div>
+    </div>
+  </main>
+  <footer>NeuroVista · RSNA-MICCAI BraTS 2021 · Biyomedikal araştırma prototipi</footer>
+</body>
+</html>

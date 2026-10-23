@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="NeuroVista: AI Destekli 3B Çok Modlu MR Beyin Tümörü Segmentasyonu ve Klinik Karar-Destek Sistemi.">
+  <meta name="keywords" content="MR segmentasyon, beyin tümörü, glioma, BraTS 2021, SwinUNETR, MedNeXt, 3D UNet, ensemble, uyum skoru, OpenVINO, medikal yapay zeka">
+  <meta name="author" content="NeuroVista Clinical AI">
+  <meta name="color-scheme" content="dark light">
+  <title>NeuroVista — AI Destekli 3B MR Beyin Tümörü Segmentasyon Platformu</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/landing.css">
+</head>
+<body>
+
+  <!-- ÜST BAR -->
+  <header class="site-header">
+    <a href="/" class="brand" aria-label="NeuroVista ana sayfa">
+      <span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#nv-mark"/></svg></span>
+      <span class="brand-text">NeuroVista</span>
+    </a>
+    <nav class="nav-menu" aria-label="Ana menü">
+      <a href="#ozellikler">Özellikler</a>
+      <a href="#modeller">Üç Model</a>
+      <a href="#metrikler">Sonuçlar</a>
+      <a href="#sss">SSS</a>
+    </nav>
+    <div class="nav-actions">
+      <span class="nav-paper-badge" aria-disabled="true" title="Makale v2 sonuçlarıyla hazırlanıyor">Makale hazırlanıyor</span>
+      <button class="theme-toggle-btn" id="themeBtn" type="button" aria-label="Temayı Değiştir"><svg class="ico" aria-hidden="true"><use href="#i-sun"/></svg></button>
+      <a href="/analysis" class="btn btn-accent nav-cta-btn">Konsolu Başlat</a>
+    </div>
+  </header>
+
+  <main class="page">
+    <!-- KAYDIRMAYA BAĞLI SAHNE (js/neuro-scene.js katmanları data-show aralıklarıyla açar) -->
+    <section class="scene" id="scene" aria-label="NeuroVista tanıtımı">
+      <div class="scene-sticky">
+        <canvas id="neuroScene" class="neuro-scene" aria-hidden="true"></canvas>
+        <div class="scene-fallback" aria-hidden="true"></div>
+
+        <!-- 1) Kahraman metni -->
+        <div class="scene-layer hero" data-show="-1,0.42">
+          <div class="container">
+            <div class="hero-copy">
+              <h1 class="hero-title">MR verisini anlaşılır klinik karar desteğine dönüştürün</h1>
+              <p class="hero-lead">Dört MR modalitesini yerelde çalışan üç modelle inceleyen, kilitli ensemble ve modeller arası uyum skoruyla 3B segmentasyon platformu.</p>
+              <div class="hero-actions">
+                <a href="/analysis" class="btn btn-accent">Analiz Konsolunu Aç</a>
+                <a href="#metrikler" class="btn btn-chip">Kilitli Sonuçlar</a>
+              </div>
+              <dl class="hero-metrics">
+                <div><dt>Ensemble Dice (iç test)</dt><dd data-result="internal_test.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</dd></div>
+                <div><dt>Harici (BraTS-Africa)</dt><dd data-result="external.africa_glioma.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</dd></div>
+                <div><dt>CPU hızlanması</dt><dd data-result="derived.speedup_range" data-format="xrange">—</dd></div>
+              </dl>
+              <a href="#scene" data-scene-s="1.3" class="round-btn" aria-label="Aşağı kaydır">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Veri ve araçlar şeridi -->
+        <div class="scene-layer marquee" data-show="-1,0.32" aria-label="Kullanılan veri ve araçlar">
+          <span class="marquee-label">Veri ve araçlar</span>
+          <div class="marquee-window">
+            <div class="marquee-track">
+              <span>RSNA-MICCAI BraTS 2021</span><span>BraTS-Africa</span><span>UTSW-Glioma</span><span>PyTorch</span><span>MONAI</span><span>Intel OpenVINO</span><span>WebGL</span>
+              <span aria-hidden="true">RSNA-MICCAI BraTS 2021</span><span aria-hidden="true">BraTS-Africa</span><span aria-hidden="true">UTSW-Glioma</span><span aria-hidden="true">PyTorch</span><span aria-hidden="true">MONAI</span><span aria-hidden="true">Intel OpenVINO</span><span aria-hidden="true">WebGL</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2) Işık küresi: model sonuçları kürenin noktalarına iğnelenir -->
+        <div class="scene-layer pins" data-show="0.92,1.62">
+          <div class="pin card-left" data-pin="-0.9,0.38,0.3"><i></i><div class="pin-card"><span><b style="--dot:#34d399"></b>3D U-Net · iç test</span><strong><span data-result="internal_test.configs.unet_v2|T1.case_mean" data-format="dice">—</span> Dice</strong></div></div>
+          <div class="pin" data-pin="0.9,0.42,0.28"><i></i><div class="pin-card"><span><b style="--dot:#a78bfa"></b>SwinUNETR · iç test</span><strong><span data-result="internal_test.configs.swin_v2|T1.case_mean" data-format="dice">—</span> Dice</strong></div></div>
+          <div class="pin card-left" data-pin="-0.88,-0.36,0.3"><i></i><div class="pin-card"><span><b style="--dot:#fbbf24"></b>MedNeXt-S · iç test</span><strong><span data-result="internal_test.configs.mednext_v2|T1.case_mean" data-format="dice">—</span> Dice</strong></div></div>
+          <div class="pin" data-pin="0.9,-0.3,0.28"><i></i><div class="pin-card"><span><b style="--dot:#22d3ee"></b>Uyum skoru · AUROC</span><strong data-result="internal_test.agreement.auroc_low_agreement_detects_failure" data-format="auroc">—</strong></div></div>
+        </div>
+        <div class="scene-layer scene-center on-glow" data-show="0.98,2.05">
+          <h2 class="display">Üç model, tek kilitli karar.</h2>
+          <p>Her voksel 3D U-Net, SwinUNETR ve MedNeXt tarafından bağımsız okunur; ana maske, test verisi görülmeden kilitlenen kuralla üç modelin ensemble'ından üretilir.</p>
+        </div>
+
+        <!-- 3) İş akışı kartları -->
+        <div class="scene-layer scene-cards" id="scene-cards" data-show="2.05,2.78">
+          <div class="cards-head on-glow">
+            <h2 class="display">Her adımı izlenebilir bir iş akışı</h2>
+            <p>Dosya seçiminden rapora kadar tek çalışma alanı.</p>
+          </div>
+          <div class="flow-cards">
+            <article class="flow-card" style="--hue:190"><div class="flow-art"></div><div class="flow-body"><span>01 · Girdi</span><h3>Dört modalite</h3><p>T1 · T1ce · T2 · FLAIR</p></div></article>
+            <article class="flow-card" style="--hue:210"><div class="flow-art"></div><div class="flow-body"><span>02 · Doğrulama</span><h3>Aynı hasta, aynı uzay</h3><p>Eksik ya da yabancı dosya reddedilir</p></div></article>
+            <article class="flow-card" style="--hue:235"><div class="flow-art"></div><div class="flow-body"><span>03 · Çıkarım</span><h3>Üç bağımsız model</h3><p>CNN · Transformer · ConvNeXt</p></div></article>
+            <article class="flow-card" style="--hue:260"><div class="flow-art"></div><div class="flow-body"><span>04 · Karar</span><h3>Ensemble + uyum</h3><p>Kilitli kural, ikili Dice uyumu</p></div></article>
+            <article class="flow-card" style="--hue:280"><div class="flow-art"></div><div class="flow-body"><span>05 · Rapor</span><h3>3B, NIfTI, PDF</h3><p>3D Slicer ve ITK-SNAP uyumlu</p></div></article>
+          </div>
+        </div>
+
+        <!-- 4) Çizgiler ve tek nokta -->
+        <div class="scene-layer scene-final" data-show="3.25,9">
+          <h2 class="display">Kanıtla kilitlenmiş karar desteği</h2>
+          <p>Ön-kayıtlı protokol, tek seferlik test ve iki bağımsız harici kohort. Sayfadaki her sayı arşivlenmiş değerlendirme kayıtlarından üretilir.</p>
+          <div class="hero-actions centered">
+            <a href="#metrikler" class="btn btn-accent">Kilitli sonuçları gör</a>
+          </div>
+          <a href="#ozet" class="round-btn" aria-label="Aşağı kaydır">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- SONUÇLAR BİR BAKIŞTA (orta kart) -->
+    <section class="section narrow" id="ozet">
+      <div class="surface-card reveal">
+        <div class="card-head">
+          <h2 class="display">Kilitli sonuçlar bir bakışta</h2>
+        </div>
+        <div class="stats-strip">
+          <div class="stat"><div class="stat-number" data-result="internal_test.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</div><div class="stat-label">Kilitli ensemble hasta-bazlı Dice (<span data-result="internal_test.cases" data-format="int">—</span> vakalık iç test)</div></div>
+          <div class="stat"><div class="stat-number"><span data-result="derived.external_primary_cases" data-format="int">—</span> vaka</div><div class="stat-label">İki bağımsız harici kohort (BraTS-Africa, UTSW)</div></div>
+          <div class="stat"><div class="stat-number" data-result="internal_test.agreement.auroc_low_agreement_detects_failure" data-format="auroc">—</div><div class="stat-label">Uyum skorunun başarısız vakayı ayırt etmesi (iç test AUROC)</div></div>
+          <div class="stat"><div class="stat-number">%100</div><div class="stat-label">Yerel veri güvenliği ve gizlilik</div></div>
+        </div>
+        <div class="research-disclaimer" id="disclaimer">
+          <div class="disclaimer-title">Araştırma Prototipi — Klinik Karar Aracı Değildir</div>
+          <div class="disclaimer-text">
+            NeuroVista bir biyomedikal araştırma ve klinik karar-destek <strong>prototipidir</strong>.
+            Üretilen segmentasyon maskeleri, hacim değerleri ve olasılık haritaları otonom tanı koymaz ve
+            tek başına klinik tedavi kararı vermek için kullanılamaz. Tüm bulgular uzman hekim
+            değerlendirmesiyle doğrulanmalıdır. Bağımsız harici kohortlarda başarı iç testten belirgin düşüktür
+            (BraTS-Africa glioma <strong data-result="external.africa_glioma.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</strong>,
+            UTSW-Glioma <strong data-result="external.utsw.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</strong> hasta-bazlı Dice).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="glow-divider" aria-hidden="true">
+      <svg viewBox="0 0 600 120" preserveAspectRatio="none"><path pathLength="1" d="M40 80 H250 C262 80 268 78 274 72 L288 22 L304 104 C309 96 316 90 330 88 C350 86 366 80 380 80 H560"/></svg>
+    </div>
+
+    <!-- DÖRT ANALİZ KATMANI -->
+    <section id="vitrin" class="section narrow">
+      <div class="surface-card reveal">
+        <div class="card-head centered">
+          <h2 class="display">Tek platformda dört analiz katmanı</h2>
+          <p>Üç modelin ortak kararı, hız, güvenilirlik göstergeleri ve üç boyutlu uzamsal kavrayış tek bir iş akışında birleşir.</p>
+        </div>
+        <div class="tab-pills-bar" role="tablist">
+          <button class="tab-pill active emerald" data-tab="0" type="button">Üç Model + Ensemble</button>
+          <button class="tab-pill" data-tab="1" type="button">OpenVINO Hızlandırma</button>
+          <button class="tab-pill" data-tab="2" type="button">Uyum ve Olasılık</button>
+          <button class="tab-pill" data-tab="3" type="button">3B Rekonstrüksiyon</button>
+        </div>
+        <!-- Dinamik vitrin (içerik js/landing.js'deki tabData'dan yazılır) -->
+        <div class="showcase-display-card" id="showcaseCard">
+          <div class="showcase-info">
+            <h3 id="tabTitle"></h3>
+            <p id="tabDesc"></p>
+            <ul class="showcase-features-list" id="tabList"></ul>
+            <a href="/analysis" class="showcase-action-btn" id="tabBtn">Analiz Konsolunu Aç</a>
+          </div>
+          <div class="showcase-mockup-panel" id="tabMockup"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ÜÇ MİMARİ -->
+    <section id="modeller" class="section">
+      <div class="section-head reveal">
+        <span class="kicker">Modüler yapay zeka mimarisi</span>
+        <h2 class="display">Üç mimari, tek kilitli karar</h2>
+        <p>Üç model aynı veri, aynı bütçe ve aynı protokolle sıfırdan eğitildi (Protokol v2). Ensemble kuralı test verisi görülmeden, validation kümesinde kilitlendi.</p>
+      </div>
+      <div class="tile-grid four">
+        <article class="tile reveal" style="--model:#34d399">
+          <div class="tile-art"><span class="orchestrator-badge">UN</span></div>
+          <div class="tile-body">
+            <span class="orchestrator-tag">Konvolüsyonel (CNN)</span>
+            <h3>3D Residual U-Net</h3>
+            <p>Klasik kodlayıcı-çözücü CNN. Yerel doku ve sınır kontrastlarını hızlı ayırır; GPU'da en hızlı model. İç test: <strong data-result="internal_test.configs.unet_v2|T1.case_mean" data-format="dice">—</strong></p>
+          </div>
+        </article>
+        <article class="tile reveal" style="--model:#a78bfa">
+          <div class="tile-art"><span class="orchestrator-badge">SW</span></div>
+          <div class="tile-body">
+            <span class="orchestrator-tag">Vision Transformer</span>
+            <h3>3D SwinUNETR</h3>
+            <p>Kaydırmalı pencere dikkatli (shifted-window) Transformer kodlayıcı. Beynin uzak bölgeleri arasındaki bağlamı yakalar. İç test: <strong data-result="internal_test.configs.swin_v2|T1.case_mean" data-format="dice">—</strong></p>
+          </div>
+        </article>
+        <article class="tile reveal" style="--model:#fbbf24">
+          <div class="tile-art"><span class="orchestrator-badge">MX</span></div>
+          <div class="tile-body">
+            <span class="orchestrator-tag">Modern CNN (ConvNeXt)</span>
+            <h3>MedNeXt-S</h3>
+            <p>ConvNeXt bloklarıyla kurulmuş modern 3B CNN; Transformer'lardan esinlenen ters darboğaz (inverted bottleneck) bloklarını evrişimle uygular. İç test: <strong data-result="internal_test.configs.mednext_v2|T1.case_mean" data-format="dice">—</strong></p>
+          </div>
+        </article>
+        <article class="tile is-primary reveal" style="--model:#22d3ee">
+          <div class="tile-art"><span class="orchestrator-badge">EN</span></div>
+          <div class="tile-body">
+            <span class="orchestrator-tag">Ana maske</span>
+            <h3>Kilitli Ensemble</h3>
+            <p>Ana maske: üç modelin voksel başına etiket çoğunluğu. Üç tekil modelden de anlamlı farkla iyi. İç test: <strong data-result="internal_test.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</strong></p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- NASIL ÇALIŞIR -->
+    <section id="ozellikler" class="section">
+      <div class="section-head reveal">
+        <span class="kicker">Nasıl çalışır?</span>
+        <h2 class="display">Üç basit adımda kanıtlanabilir sonuç</h2>
+        <p>Karmaşık derin öğrenme süreçleri, hekimler için pürüzsüz ve tek tıkla çalışan bir deneyime dönüştürülmüştür.</p>
+      </div>
+      <div class="tile-grid three">
+        <article class="step reveal">
+          <span class="step-no">01</span>
+          <h3>Çok modlu NIfTI yükleme</h3>
+          <p>Aynı hastaya ait T1, T1ce, T2 ve FLAIR dosyaları otomatik eşleştirilir. Varsa Ground Truth referansı bağımsız metrik hesaplama için kullanılır.</p>
+        </article>
+        <article class="step reveal">
+          <span class="step-no">02</span>
+          <h3>Üç model, ensemble ve uyum</h3>
+          <p>Üç model aynı hacmi işler; kilitli ensemble ana maskeyi üretir. Modeller arası uyum skoru, konsensüs paneli ve tümör olasılık haritası (softmax) hesaplanır.</p>
+        </article>
+        <article class="step reveal">
+          <span class="step-no">03</span>
+          <h3>Kesit, 3B mesh ve rapor</h3>
+          <p>Kesitlerde gezinip alt bölge hacimlerini inceleyin. Her model ve ensemble maskesini NIfTI olarak (3D Slicer, ITK-SNAP) ve özet raporu PNG ya da PDF olarak indirin.</p>
+        </article>
+      </div>
+    </section>
+
+    <div class="glow-divider" aria-hidden="true">
+      <svg viewBox="0 0 600 120" preserveAspectRatio="none"><path pathLength="1" d="M40 80 H250 C262 80 268 78 274 72 L288 22 L304 104 C309 96 316 90 330 88 C350 86 366 80 380 80 H560"/></svg>
+    </div>
+
+    <!-- KİLİTLİ İÇ TEST VE HARİCİ DOĞRULAMA -->
+    <section id="metrikler" class="section">
+      <div class="section-head reveal">
+        <span class="kicker">Bilimsel doğrulama · Ön-kayıtlı protokol</span>
+        <h2 class="display">Kilitli iç test ve harici doğrulama</h2>
+        <p>Model seçimi ve ensemble kuralı validation kümesinde kilitlendi; <span data-result="internal_test.cases" data-format="int">—</span> vakalık iç test bir kez değerlendirildi. Ardından iki bağımsız harici kohortta aynı protokolle test edildi. Değerler hasta-bazlı ortalama Dice'tır (WT, TC, ET ortalaması).</p>
+      </div>
+
+      <div class="benchmark-grid">
+        <div class="benchmark-box highlight reveal">
+          <div class="benchmark-head"><span class="benchmark-model-name">Kilitli Ensemble · İç Test</span><span class="chip">Ana maske</span></div>
+          <div class="benchmark-score-big"><span data-result="internal_test.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</span> Dice</div>
+          <div class="benchmark-metrics-row">
+            <div><span>WT Dice</span><strong data-result="internal_test.configs.ensemble|PRIMARY.WT" data-format="dice">—</strong></div>
+            <div><span>TC Dice</span><strong data-result="internal_test.configs.ensemble|PRIMARY.TC" data-format="dice">—</strong></div>
+            <div><span>ET Dice</span><strong data-result="internal_test.configs.ensemble|PRIMARY.ET" data-format="dice">—</strong></div>
+          </div>
+          <p class="benchmark-note">%95 GA: <strong data-result="internal_test.configs.ensemble|PRIMARY.case_mean_ci95" data-format="ci">—</strong> · WT HD95: <strong><span data-result="internal_test.configs.ensemble|PRIMARY.hd95_surface_mm.WT" data-format="mm">—</span> mm</strong> · Üç tekil modelden de anlamlı farkla iyi (eşleştirilmiş Wilcoxon, Holm düzeltmeli)</p>
+        </div>
+        <div class="benchmark-box reveal">
+          <div class="benchmark-head"><span class="benchmark-model-name">Tekil Modeller · İç Test</span><span class="chip">v2 · TTA T1</span></div>
+          <div class="benchmark-score-big">Hasta-bazlı Dice</div>
+          <div class="benchmark-metrics-row">
+            <div><span>SwinUNETR</span><strong data-result="internal_test.configs.swin_v2|T1.case_mean" data-format="dice">—</strong></div>
+            <div><span>MedNeXt-S</span><strong data-result="internal_test.configs.mednext_v2|T1.case_mean" data-format="dice">—</strong></div>
+            <div><span>3D U-Net</span><strong data-result="internal_test.configs.unet_v2|T1.case_mean" data-format="dice">—</strong></div>
+          </div>
+          <p class="benchmark-note">v1 → v2 kazancı (aynı protokol): Swin <strong data-result="v1_unified_test.paired_v1_v2.swin_v2|T0 vs swin_v1|T0.mean_difference" data-format="signed">—</strong>, U-Net <strong data-result="v1_unified_test.paired_v1_v2.unet_v2|T0 vs unet_v1|T0.mean_difference" data-format="signed">—</strong>; ikisi de istatistiksel olarak anlamlı.</p>
+        </div>
+        <div class="benchmark-box reveal">
+          <div class="benchmark-head"><span class="benchmark-model-name">BraTS-Africa Glioma · Harici</span><span class="chip"><span data-result="external.africa_glioma.cases" data-format="int">—</span> vaka</span></div>
+          <div class="benchmark-score-big"><span data-result="external.africa_glioma.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</span> Dice</div>
+          <div class="benchmark-metrics-row">
+            <div><span>WT Dice</span><strong data-result="external.africa_glioma.configs.ensemble|PRIMARY.WT" data-format="dice">—</strong></div>
+            <div><span>TC Dice</span><strong data-result="external.africa_glioma.configs.ensemble|PRIMARY.TC" data-format="dice">—</strong></div>
+            <div><span>ET Dice</span><strong data-result="external.africa_glioma.configs.ensemble|PRIMARY.ET" data-format="dice">—</strong></div>
+          </div>
+          <p class="benchmark-note">%95 GA: <strong data-result="external.africa_glioma.configs.ensemble|PRIMARY.case_mean_ci95" data-format="ci">—</strong> · İç testten fark: <strong><span data-result="external.africa_glioma.gap_vs_internal_test" data-format="points">—</span> puan</strong> · Uyum AUROC: <strong data-result="external.africa_glioma.agreement.auroc_low_agreement_detects_failure" data-format="auroc">—</strong></p>
+        </div>
+        <div class="benchmark-box reveal">
+          <div class="benchmark-head"><span class="benchmark-model-name">UTSW-Glioma (ABD) · Harici</span><span class="chip"><span data-result="external.utsw.cases" data-format="int">—</span> vaka</span></div>
+          <div class="benchmark-score-big"><span data-result="external.utsw.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</span> Dice</div>
+          <div class="benchmark-metrics-row">
+            <div><span>WT Dice</span><strong data-result="external.utsw.configs.ensemble|PRIMARY.WT" data-format="dice">—</strong></div>
+            <div><span>TC Dice</span><strong data-result="external.utsw.configs.ensemble|PRIMARY.TC" data-format="dice">—</strong></div>
+            <div><span>ET Dice</span><strong data-result="external.utsw.configs.ensemble|PRIMARY.ET" data-format="dice">—</strong></div>
+          </div>
+          <p class="benchmark-note">%95 GA: <strong data-result="external.utsw.configs.ensemble|PRIMARY.case_mean_ci95" data-format="ci">—</strong> · İç testten fark: <strong><span data-result="external.utsw.gap_vs_internal_test" data-format="points">—</span> puan</strong> · Uyum AUROC: <strong data-result="external.utsw.agreement.auroc_low_agreement_detects_failure" data-format="auroc">—</strong>. TC düşüşünün önemli kısmı etiketleme kuralı farkından gelir (kontrast tutmayan tümör ödem olarak etiketlenmiş; post-hoc analiz).</p>
+        </div>
+      </div>
+      <p class="benchmark-caveat reveal"><strong>Kaynak ve sınırlılık notu:</strong> Bu sayfadaki sayılar <code>/api/v1/results</code> üzerinden <code>results/v2_results.json</code> dosyasından yüklenir; dosya arşivlenmiş değerlendirme kayıtlarından otomatik üretilir. Harici kohortlarda başarı iç testten belirgin düşüktür; bu, farklı tarayıcı, protokol ve etiketleme alışkanlıklarının etkisini gösterir. Skorlar klinik performans iddiası değildir.</p>
+    </section>
+
+    <!-- ÇALIŞMA ZAMANI -->
+    <section class="section">
+      <div class="section-head reveal">
+        <span class="kicker">Teknik bilgi</span>
+        <h2 class="display">Çalışma zamanı ve veri gereksinimleri</h2>
+        <p>Tek vakada (BraTS 2021) web servisi üzerinden ölçülen uçtan uca model süreleri; ısınma çalıştırması hariç.</p>
+      </div>
+      <div class="tile-grid three">
+        <div class="runtime-info-card reveal">
+          <div class="ri-label">GPU (PyTorch CUDA)</div>
+          <div class="ri-value"><span data-result="web_runtime.gpu.total_seconds" data-format="sec">—</span> sn · üç model</div>
+          <div class="ri-desc">Ölçüm donanımı: <span data-result="web_runtime.gpu.gpu" data-format="text">—</span>. U-Net <span data-result="web_runtime.gpu.seconds.unet" data-format="sec">—</span> sn, Swin <span data-result="web_runtime.gpu.seconds.swin" data-format="sec">—</span> sn, MedNeXt <span data-result="web_runtime.gpu.seconds.mednext" data-format="sec">—</span> sn.</div>
+        </div>
+        <div class="runtime-info-card reveal">
+          <div class="ri-label">CPU (Intel OpenVINO FP32)</div>
+          <div class="ri-value"><span data-result="web_runtime.cpu_openvino.total_seconds" data-format="sec">—</span> sn · üç model</div>
+          <div class="ri-desc">Üç model de OpenVINO ile çalışır (hızlanma <span data-result="derived.speedup_range" data-format="xrange">—</span>); hata durumunda PyTorch'a otomatik döner. Bilimsel referans PyTorch'tur.</div>
+        </div>
+        <div class="runtime-info-card reveal">
+          <div class="ri-label">Girdi veri gereksinimleri</div>
+          <div class="ri-value">4 × NIfTI (.nii / .nii.gz)</div>
+          <div class="ri-desc">Aynı hastaya ait T1, T1ce, T2 ve FLAIR. Ground Truth (_seg) dosyası isteğe bağlıdır; yalnız Dice metrikleri için kullanılır.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SSS -->
+    <section id="sss" class="section narrow">
+      <div class="section-head reveal">
+        <span class="kicker">Sık sorulan sorular</span>
+        <h2 class="display">Merak edilenler</h2>
+      </div>
+      <div class="faq-list">
+        <details class="faq-item" open>
+          <summary>Hangi MR dosyalarını yüklemeliyim?</summary>
+          <p>Aynı hastaya ait T1, T1ce, T2 ve FLAIR NIfTI (.nii veya .nii.gz) dosyalarını birlikte veya bunları içeren tek bir ZIP dosyası olarak seçmelisiniz.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Sonuçlar gerçek yapay zeka çıktısı mı?</summary>
+          <p>Evet. Segmentasyon maskeleri, hacimler, uyum skoru ve (Ground Truth varsa) Dice değerleri yerelde çalışan eğitimli üç modelden ve kilitli ensemble'dan anlık üretilir.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Uyum skoru nedir?</summary>
+          <p>Üç modelin maskeleri arasındaki ortalama ikili Dice'tır (WT, TC, ET); Ground Truth gerektirmez. Düşük uyum, segmentasyonun hatalı olma riskinin yüksek olduğunu gösterir: iç testte başarısız vakaları AUROC <span data-result="internal_test.agreement.auroc_low_agreement_detects_failure" data-format="auroc">—</span>, harici kohortlarda <span data-result="derived.external_auroc_range" data-format="range2">—</span> ile ayırt etti.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Olasılık haritası bir Grad-CAM mi?</summary>
+          <p>Hayır. Gösterilen harita, ana maskenin voksel başına softmax tümör olasılığıdır. Modelin "nereye baktığını" açıklayan bir yöntem (Grad-CAM gibi) değildir; yalnız modelin ne kadar emin olduğunu gösterir.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Ground Truth (seg) dosyası zorunlu mu?</summary>
+          <p>Hayır. Ground Truth yalnızca doğrulama metriklerini (Dice) görmek için isteğe bağlıdır. Olmadan da tam segmentasyon, uyum skoru ve hacim analizi yapılır.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Verilerim dışarı aktarılıyor mu?</summary>
+          <p>Hayır. NeuroVista tamamen yerel bilgisayarınız üzerinde çalışır. Hiçbir MR görüntüsü veya hasta verisi harici bulut sunucularına aktarılmaz.</p>
+        </details>
+        <details class="faq-item">
+          <summary>OpenVINO mu yoksa PyTorch mu kullanılıyor?</summary>
+          <p>GPU varsa PyTorch (CUDA) kullanılır. CPU modunda üç model de Intel OpenVINO FP32 ile çalışır (hızlanma <span data-result="derived.speedup_range" data-format="xrange">—</span>); hata olursa PyTorch'a döner. Bilimsel sonuçlar PyTorch ile üretildi; OpenVINO'nun etiket uyumu en az <span data-result="derived.min_argmax_agreement" data-format="pct5">—</span> olsa da bit düzeyinde aynı değildir.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Sonuçlar bağımsız olarak doğrulandı mı?</summary>
+          <p>Evet, iki harici kohortta ön-kayıtlı protokolle: BraTS-Africa glioma (<span data-result="external.africa_glioma.cases" data-format="int">—</span> vaka) <span data-result="external.africa_glioma.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</span>, UTSW-Glioma uzman maskeli (<span data-result="external.utsw.cases" data-format="int">—</span> vaka) <span data-result="external.utsw.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</span> hasta-bazlı Dice. İç testteki <span data-result="internal_test.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</span> değerine göre düşüş belirgindir; sonuçlar klinik performans iddiası olarak değerlendirilmemelidir.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Bu sistem otonom tanı koyar mı?</summary>
+          <p>Hayır. Bu yazılım bir klinik karar-destek ve biyomedikal araştırma aracıdır. Tüm bulgular uzman hekim tarafından değerlendirilmelidir.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- SON ÇAĞRI -->
+    <section class="section final-cta reveal">
+      <h2 class="display">Hasta MR analizine hemen başlayın</h2>
+      <p>T1, T1ce, T2 ve FLAIR dosyalarınızı seçin; üç modelin ve kilitli ensemble'ın segmentasyonunu uyum skoruyla birlikte inceleyin.</p>
+      <a href="/analysis" class="btn btn-accent btn-large">Analiz Konsolunu Aç</a>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <a href="/" class="brand"><span class="brand-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#nv-mark"/></svg></span><span class="brand-text">NeuroVista</span></a>
+        <p>Biyomedikal araştırma prototipi — klinik tanı veya tedavi aracı değildir. Harici doğrulama: BraTS-Africa, UTSW-Glioma.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Platform</h4>
+        <a href="/analysis">Analiz konsolu</a>
+        <a href="#metrikler">Kilitli sonuçlar</a>
+        <a href="#modeller">Üç model</a>
+      </div>
+      <div class="footer-col">
+        <h4>Bilgi</h4>
+        <a href="#ozellikler">Nasıl çalışır?</a>
+        <a href="#sss">SSS</a>
+        <a href="#disclaimer">Sınırlılıklar</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© 2026 NeuroVista Clinical Imaging Workstation · RSNA-MICCAI BraTS 2021</div>
+  </footer>
+
+  <!-- Köşedeki bilgi kartı (masaüstü) -->
+  <aside class="notice-card" id="noticeCard" aria-label="Araştırma bildirimi">
+    <a href="#disclaimer" class="notice-link">
+      <span class="notice-mark" aria-hidden="true">!</span>
+      <span><small>Araştırma prototipi</small>Klinik tanı aracı değildir; bulgular uzman hekimce doğrulanmalıdır.</span>
+    </a>
+    <button class="notice-close" id="noticeClose" type="button" aria-label="Bildirimi kapat">×</button>
+  </aside>
+
+  <!-- Marka işareti (favicon.svg ile aynı çizim) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+    <symbol id="nv-mark" viewBox="0 0 32 32">
+      <g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 7.6c-1.9-1.7-5.3-1.3-6.5 1.1-2.3.2-3.6 2.4-2.9 4.4-1.6 1.2-1.6 3.7 0 4.9-.6 2.2 1 4.3 3.2 4.3.9 2 3.5 2.7 5.2 1.3"/>
+        <path d="M16 7.6c1.9-1.7 5.3-1.3 6.5 1.1 2.3.2 3.6 2.4 2.9 4.4 1.6 1.2 1.6 3.7 0 4.9.6 2.2-1 4.3-3.2 4.3-.9 2-3.5 2.7-5.2 1.3"/>
+        <path d="M16 7.6v16M11.2 12.6l2.6 2.3M20.8 12.6l-2.6 2.3M11.6 18.6h2.4M20.4 18.6H18"/>
+      </g>
+      <g fill="currentColor"><circle cx="11.2" cy="12.6" r="1.5"/><circle cx="20.8" cy="12.6" r="1.5"/><circle cx="11.6" cy="18.6" r="1.5"/><circle cx="20.4" cy="18.6" r="1.5"/></g>
+    </symbol>
+  </svg>
+
+  <script src="/js/results.js"></script>
+  <script src="/js/smooth-scroll.js"></script>
+  <script src="/js/landing.js"></script>
+  <script src="/js/neuro-scene.js"></script>
+</body>
+</html>

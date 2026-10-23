@@ -1,0 +1,46 @@
+# =========================================================================
+# NeuroVista web çalışma istasyonu (CPU imajı: PyTorch CPU + OpenVINO FP32)
+# Derleme ve çalıştırma: docker compose -f docker/docker-compose.web.yml up -d --build
+# Model ağırlıkları imaja girmez; çalışma anında salt-okunur bağlanır (docker/README.md).
+# =========================================================================
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# Sistem bağımlılıkları: OpenMP (libgomp1) ve sağlık kontrolü (curl)
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends libgomp1 curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Bağımlılıklar (requirements.txt başlığındaki kural, DECISIONS §10):
+# - torch/torchvision CPU dizininden (CUDA paketleri ~2.5 GB gereksiz yük olurdu),
+# - diğer sabit paketler requirements.txt'ten (torch satırları ve CUDA dizini filtrelenir),
+# - MONAI sürüm çakışması nedeniyle --no-deps.
+COPY requirements.txt /app/requirements.txt
+RUN pip install --upgrade pip \
+    && pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu \
+    && grep -v -E '^(torch|torchvision)==|^--extra-index-url' /app/requirements.txt > /tmp/requirements-cpu.txt \
+    && pip install -r /tmp/requirements-cpu.txt \
+    && pip install --no-deps monai==1.6.0
+
+# Uygulama ve tek kaynak sonuç dosyası (/api/v1/results). Makale PDF'i kopyalanmaz (v2 makalesi hazırlanıyor).
+COPY backend/ /app/backend/
+COPY results/ /app/results/
+
+# Kök olmayan kullanıcı; yazılabilir tek yer geçici oturum dizini (.web_runtime).
+RUN useradd --create-home --uid 1000 neurovista \
+    && mkdir -p /app/model_checkpoints /app/reports /app/test_data /app/.web_runtime \
+    && chown -R neurovista:neurovista /app/.web_runtime
+USER neurovista
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+CMD ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]

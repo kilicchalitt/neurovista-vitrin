@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>NeuroVista | Klinik Görüntüleme Çalışma İstasyonu</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  
+  <!-- Modern Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Darker+Grotesque:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="/css/analysis.css">
+</head>
+<body class="workspace-active">
+
+  <!-- ARAŞTIRMA PROTOTİPİ ÜST BİLDİRİM BARI -->
+  <div class="research-bar">
+    <strong><svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg>Araştırma Prototipi</strong>
+    <span class="rb-sep"></span>
+    <span>Klinik tanı veya tedavi kararı aracı değildir; tüm bulgular uzman hekim tarafından doğrulanmalıdır.</span>
+    <span class="rb-sep rb-optional"></span>
+    <span class="rb-optional">Harici kohortlarda başarı iç testten düşüktür (Kilitli Sonuçlar).</span>
+  </div>
+
+  <!-- 1. YÜZEN ÜST BAR -->
+  <header class="topbar">
+    <a href="/" class="wordmark">
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><use href="#nv-mark"/></svg></div>
+      <div class="brand-text">
+        <strong>NeuroVista</strong>
+        <small>Klinik Görüntüleme Çalışma İstasyonu</small>
+      </div>
+    </a>
+    <!-- Tanıtım sayfasıyla aynı üst bar düzeni: bağlantı, durum yazısı, tema düğmesi, sağda mavi Ana Sayfa -->
+    <div class="topbar-actions">
+      <nav class="topbar-nav" aria-label="Ana menü">
+        <button id="topbarBenchmarkBtn" class="nav-link topbar-benchmark-btn" type="button" title="Kilitli iç test ve harici doğrulama sonuçlarını görüntüle">Kilitli Sonuçlar</button>
+      </nav>
+      <div class="system-status">
+        <span class="live-badge"><span class="pulse-dot"></span><span id="engineLabel">Yerel AI Motoru Çevrimiçi</span></span>
+      </div>
+      <button class="theme-switch" id="themeToggleBtn" type="button" aria-label="Temayı Değiştir"><svg class="ico" aria-hidden="true"><use href="#i-sun"/></svg></button>
+      <a href="/" class="nav-cta-btn">Ana Sayfa</a>
+    </div>
+  </header>
+
+  <!-- 2. ANA ÇALIŞMA ALANI & SOL KONTROL RAYI -->
+  <main class="shell">
+    <!-- Sol Kontrol Rayı -->
+    <aside class="control-rail">
+      <div class="rail-head">
+        <div class="eyebrow">01 · Hasta girişi</div>
+        <h1>Hasta Analiz Konsolu</h1>
+        <p>Gerçek 4 modaliteli NIfTI MR hacimleri üzerinde yerel çoklu model çıkarımı ve kilitli ensemble.</p>
+        <div class="online" id="hwBadge"><i></i>Çıkarım Motoru Hazır</div>
+      </div>
+
+      <div class="workflow">
+        <button id="pickFiles" class="file-button" type="button">
+          <svg class="ico" aria-hidden="true"><use href="#i-folder"/></svg>
+          <b>Hasta MR Dosyalarını Seç</b>
+        </button>
+        <input id="files" class="hidden-file" type="file" multiple accept=".nii,.nii.gz,.zip">
+        <button id="start" class="primary" disabled>Analizi Başlat →</button>
+        
+        <div class="utility-row">
+          <button id="reportButton" class="report-action" disabled><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Rapor (PNG)</button>
+          <button id="showMesh" class="ghost" disabled><svg class="ico" aria-hidden="true"><use href="#i-cube"/></svg>3B Sahne</button>
+        </div>
+
+        <div id="patient" class="case-summary">Henüz hasta dosyası seçilmedi.</div>
+        <div id="filesInfo" class="case-summary" style="display:none"></div>
+      </div>
+
+      <!-- Modalite Seçici -->
+      <section class="rail-section">
+        <div class="section-label">
+          <span>02 · Görüntü modalitesi</span>
+          <span>MR Kesiti</span>
+        </div>
+        <div class="modality" id="modality">
+          <button data-mod="0">T1</button>
+          <button data-mod="1">T1ce</button>
+          <button data-mod="2">T2</button>
+          <button class="active" data-mod="3">FLAIR</button>
+        </div>
+      </section>
+
+      <!-- Z-Ekseni Kesit Kaydırıcı -->
+      <section class="rail-section">
+        <div class="section-label">
+          <span>03 · Z-ekseni kesiti</span>
+          <span id="sliceCaption">İnceleme</span>
+        </div>
+        <input class="slider" id="slider" type="range" min="0" max="0" value="0" disabled aria-label="Z ekseni kesit gezintisi">
+        <div class="slice-value" id="sliceValue">Kesit: —</div>
+      </section>
+
+      <!-- Doğrulama Metrikleri -->
+      <section class="rail-section">
+        <div class="section-label">
+          <span>04 · Doğrulama metrikleri</span>
+          <button id="btnShowBenchmark" class="benchmark-pill-btn" type="button" title="Kilitli sonuçları gör">Kilitli sonuçlar</button>
+        </div>
+        <div class="metrics" id="metrics"></div>
+      </section>
+
+      <!-- Durum İlerlemesi -->
+      <div id="status" class="progress">T1, T1ce, T2 ve FLAIR dosyalarını aynı seçimde işaretleyin. Ardından analizi başlatın.</div>
+    </aside>
+
+    <!-- Sağ Çalışma Alanı -->
+    <section class="workspace">
+      <div class="workspace-head">
+        <div>
+          <div class="eyebrow">Çalışma alanı</div>
+          <h2>Çoklu Model, Ensemble & Konsensüs</h2>
+        </div>
+        <div class="workspace-meta">
+          <span>İnceleme Durumu<b id="reviewState">Hasta seçimi bekleniyor</b></span>
+          <span>Kesit Düzlemi<b>Aksiyel · Z-Ekseni</b></span>
+        </div>
+      </div>
+
+      <!-- Çok-Panelli Teşhis Masası -->
+      <section class="diagnostic-deck">
+        <div class="deck-ribbon">
+          <span>Görüntüler sunucudaki gerçek MR hacmi ve model çıkarımından üretilir.</span>
+          <strong>Canlı inceleme</strong>
+        </div>
+        <div class="panels" id="panels"></div>
+        <div id="consensusSummary" class="disagreement-summary" hidden></div>
+        <div class="tools">
+          <a id="report" target="_blank"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Tanısal Raporu Dışa Aktar (PNG / PDF)</a>
+          <span id="maskLinks" style="display: contents;"></span>
+        </div>
+      </section>
+
+      <!-- 3B Hacim & Mesh Rekonstrüksiyon Bölümü -->
+      <section class="mesh-wrap" id="meshWrap">
+        <div class="mesh-head">
+          <div>
+            <div class="eyebrow">Üç boyutlu hacim ve mesh rekonstrüksiyonu</div>
+            <h2>Segmentasyon Anatomisi</h2>
+          </div>
+          <p>Katmanlar gerçek MR ve seçilen model tahmin hacminden üretilir.</p>
+        </div>
+
+        <div class="mesh-controls">
+          <select id="meshSource" aria-label="3B Sahne Kaynak Modeli"></select>
+          <button id="loadMesh" type="button">3B Sahneyi Güncelle</button>
+        </div>
+
+        <div class="scene-presets">
+          <span>Görünüm:</span>
+          <button id="viewAxial" class="active" type="button" title="Yukarıdan bakış; 2B aksiyel kesitle hizalı">Aksiyel</button>
+          <button id="viewIso" type="button" title="Eğik bakış">İzometrik</button>
+          <button id="viewSagittal" type="button" title="Yandan bakış">Sagittal</button>
+        </div>
+
+        <div id="meshToggles" class="mesh-toggles"></div>
+
+        <div class="canvas-frame">
+          <canvas id="mesh" class="mesh"></canvas>
+          <div class="orientation-card">
+            <b id="viewTitle">AKSİYEL GÖRÜNÜM</b>
+            <span id="viewNote">2B kesitle hizalı · <em>tümör konumu eşleşir</em></span>
+          </div>
+        </div>
+
+        <div class="hint">
+          <kbd>Sürükle</kbd> anatomiyi döndür · <kbd>Tekerlek</kbd> odak uzaklığı · <kbd>Çift Tık</kbd> aksiyel görünüme dön
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <!-- Canlı HUD Süreç Göstergesi -->
+  <div id="activityHUD" class="activity-hud">
+    <div class="hud-spinner"></div>
+    <span class="hud-text" id="hudMessage">Analiz yürütülüyor...</span>
+  </div>
+
+  <!-- Toast Bildirim Alanı -->
+  <div id="toastHost" class="toast-host"></div>
+
+  <!-- Hata ve Rehberlik Modalı -->
+  <div id="errorModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div class="modal-icon-badge"><svg class="ico" aria-hidden="true"><use href="#i-alert-circle"/></svg></div>
+        <h3 id="modalTitle">Analiz Hatası</h3>
+      </div>
+      <div class="modal-body">
+        <p id="modalDesc">İşlem sırasında beklenmeyen bir hata oluştu.</p>
+        <div class="modal-guidance" id="modalGuide">Lütfen dosyalarınızı kontrol edip tekrar deneyiniz.</div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-btn secondary" id="modalDismiss" type="button">Kapat</button>
+        <button class="modal-btn primary" id="modalRetry" type="button">Yeniden Seç</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kilitli Sonuçlar Modalı (sayılar /api/v1/results'tan, js/results.js) -->
+  <div id="benchmarkModal" class="modal-overlay">
+    <div class="modal-card benchmark-card">
+      <div class="modal-head">
+        <div class="modal-icon-badge benchmark-badge"><svg class="ico" aria-hidden="true"><use href="#i-chart"/></svg></div>
+        <div>
+          <h3>Kilitli Sonuçlar (Protokol v2)</h3>
+          <small class="modal-sub">RSNA-MICCAI BraTS 2021 iç test (<span data-result="internal_test.cases" data-format="int">—</span> vaka) · iki harici kohort</small>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p>Model seçimi ve ensemble kuralı validation kümesinde kilitlendi; iç test bir kez değerlendirildi. Değerler bölge Dice'ları ve hasta-bazlı ortalama Dice'tır:</p>
+
+        <div class="table-scroll"><table class="benchmark-table">
+          <thead>
+            <tr>
+              <th>İç test</th>
+              <th>WT</th>
+              <th>TC</th>
+              <th>ET</th>
+              <th>Hasta-bazlı</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Kilitli ensemble</strong> <span class="tag-chip">Ana maske</span></td>
+              <td><b data-result="internal_test.configs.ensemble|PRIMARY.WT" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.ensemble|PRIMARY.TC" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.ensemble|PRIMARY.ET" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</b></td>
+            </tr>
+            <tr>
+              <td><strong>SwinUNETR</strong> <span class="tag-chip">Transformer</span></td>
+              <td><b data-result="internal_test.configs.swin_v2|T1.WT" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.swin_v2|T1.TC" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.swin_v2|T1.ET" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.swin_v2|T1.case_mean" data-format="dice">—</b></td>
+            </tr>
+            <tr>
+              <td><strong>MedNeXt-S</strong> <span class="tag-chip">ConvNeXt</span></td>
+              <td><b data-result="internal_test.configs.mednext_v2|T1.WT" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.mednext_v2|T1.TC" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.mednext_v2|T1.ET" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.mednext_v2|T1.case_mean" data-format="dice">—</b></td>
+            </tr>
+            <tr>
+              <td><strong>3D U-Net</strong> <span class="tag-chip">CNN</span></td>
+              <td><b data-result="internal_test.configs.unet_v2|T1.WT" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.unet_v2|T1.TC" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.unet_v2|T1.ET" data-format="dice">—</b></td>
+              <td><b data-result="internal_test.configs.unet_v2|T1.case_mean" data-format="dice">—</b></td>
+            </tr>
+          </tbody>
+        </table></div>
+
+        <div class="table-scroll"><table class="benchmark-table">
+          <thead>
+            <tr>
+              <th>Harici (ensemble)</th>
+              <th>WT</th>
+              <th>TC</th>
+              <th>ET</th>
+              <th>Hasta-bazlı</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>BraTS-Africa glioma</strong> <span class="tag-chip"><span data-result="external.africa_glioma.cases" data-format="int">—</span> vaka</span></td>
+              <td><b data-result="external.africa_glioma.configs.ensemble|PRIMARY.WT" data-format="dice">—</b></td>
+              <td><b data-result="external.africa_glioma.configs.ensemble|PRIMARY.TC" data-format="dice">—</b></td>
+              <td><b data-result="external.africa_glioma.configs.ensemble|PRIMARY.ET" data-format="dice">—</b></td>
+              <td><b data-result="external.africa_glioma.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</b></td>
+            </tr>
+            <tr>
+              <td><strong>UTSW-Glioma</strong> <span class="tag-chip"><span data-result="external.utsw.cases" data-format="int">—</span> vaka</span></td>
+              <td><b data-result="external.utsw.configs.ensemble|PRIMARY.WT" data-format="dice">—</b></td>
+              <td><b data-result="external.utsw.configs.ensemble|PRIMARY.TC" data-format="dice">—</b></td>
+              <td><b data-result="external.utsw.configs.ensemble|PRIMARY.ET" data-format="dice">—</b></td>
+              <td><b data-result="external.utsw.configs.ensemble|PRIMARY.case_mean" data-format="dice">—</b></td>
+            </tr>
+          </tbody>
+        </table></div>
+
+        <div class="modal-guidance">
+          <strong class="guidance-title"><svg class="ico" aria-hidden="true"><use href="#i-list"/></svg>Metodoloji ve Doğrulama Notu</strong>
+          <ul class="guidance-list">
+            <li>Ensemble üç tekil modelden de istatistiksel olarak anlamlı farkla iyidir (eşleştirilmiş Wilcoxon, Holm düzeltmeli). Uyum skoru başarısız vakaları iç testte AUROC <span data-result="internal_test.agreement.auroc_low_agreement_detects_failure" data-format="auroc">—</span> ile ayırt etti.</li>
+            <li>Harici kohortlarda başarı iç testten düşüktür (Afrika <span data-result="external.africa_glioma.gap_vs_internal_test" data-format="points">—</span>, UTSW <span data-result="external.utsw.gap_vs_internal_test" data-format="points">—</span> puan). UTSW'de TC düşüşünün önemli kısmı etiketleme kuralı farkından gelir (post-hoc analiz).</li>
+            <li>CPU modunda üç model de OpenVINO FP32 ile çalışır (hızlanma <span data-result="derived.speedup_range" data-format="xrange">—</span>); bilimsel referans PyTorch'tur. Web hız modu TTA kullanmaz; tablo değerleri TTA (T1) ile ölçülmüştür.</li>
+            <li>Sistem araştırma amaçlı bir prototiptir; klinik tanı veya cerrahi tedavi kararı desteği sağlamaz.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <a href="/#metrikler" class="modal-btn secondary">Ayrıntılı Sonuçlar</a>
+        <button class="modal-btn primary" id="benchmarkDismiss" type="button">Anladım, Kapat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Marka işareti (favicon.svg ve tanıtım sayfasıyla aynı çizim) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-cube" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12L4 7.5M12 12v9"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16M8 16v-5M12 16V8M16 16v-3"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.5h.01"/></symbol>
+    <symbol id="i-alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.5h.01"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+    <symbol id="nv-mark" viewBox="0 0 32 32">
+      <g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 7.6c-1.9-1.7-5.3-1.3-6.5 1.1-2.3.2-3.6 2.4-2.9 4.4-1.6 1.2-1.6 3.7 0 4.9-.6 2.2 1 4.3 3.2 4.3.9 2 3.5 2.7 5.2 1.3"/>
+        <path d="M16 7.6c1.9-1.7 5.3-1.3 6.5 1.1 2.3.2 3.6 2.4 2.9 4.4 1.6 1.2 1.6 3.7 0 4.9.6 2.2-1 4.3-3.2 4.3-.9 2-3.5 2.7-5.2 1.3"/>
+        <path d="M16 7.6v16M11.2 12.6l2.6 2.3M20.8 12.6l-2.6 2.3M11.6 18.6h2.4M20.4 18.6H18"/>
+      </g>
+      <g fill="currentColor"><circle cx="11.2" cy="12.6" r="1.5"/><circle cx="20.8" cy="12.6" r="1.5"/><circle cx="11.6" cy="18.6" r="1.5"/><circle cx="20.4" cy="18.6" r="1.5"/></g>
+    </symbol>
+  </svg>
+
+  <!-- =========================================================================
+       CORE JAVASCRIPT & 3D WEBLG ENGINE
+       ========================================================================= -->
+  <script src="/js/smooth-scroll.js"></script>
+  <script src="/js/analysis.js"></script>
+  <script src="/js/results.js"></script>
+</body>
+</html>
