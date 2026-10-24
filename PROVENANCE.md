@@ -3,8 +3,8 @@
 Bu depo, NeuroVista ana projesinden (private) izin listesiyle otomatik üretilmiş public vitrindir.
 Dosyalar elle kopyalanmaz; ana depodaki `tools/export_public.py` belirtilen commit'ten üretir.
 
-- Kaynak depo: kilicchalitt/brain-tumor-segmentation (private)
-- Kaynak commit: `009645bd9efd1b6720b05045497ddf15aa73ae5e` (2026-10-24)
+- Kaynak depo: kilicchalitt/neurovista (private)
+- Kaynak commit: `eb68df7a0f87567ce838f1bf11fee247b83a3db1` (2026-10-24)
 - Dosya sayısı: 46
 
 | Dosya | SHA-256 (ilk 12) |
