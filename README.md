@@ -25,6 +25,7 @@ NeuroVista, çok modlu beyin MR'ından (**T1, T1ce, T2, FLAIR**) glioma alt böl
 
 - [Problem](#problem)
 - [Yaklaşım](#yaklaşım)
+- [Tasarım kararları ve gerekçeleri](#tasarım-kararları-ve-gerekçeleri)
 - [Sonuçlar](#sonuçlar)
 - [Sistem mimarisi](#sistem-mimarisi)
 - [Bu depoda neler var](#bu-depoda-neler-var)
@@ -48,9 +49,9 @@ Glioma segmentasyonu radyoterapi planlamasının, cerrahi sınırların ve hacim
 
 | Kod | Model | Paradigma | Yapı taşı | Parametre |
 |:---:|---|---|---|:---:|
-| M1 | **Residual 3D U-Net** | Klasik yerel evrişim (CNN) | Residual birimler, 3×3×3 evrişim | ~4.8 M |
-| M2 | **SwinUNETR** | Hiyerarşik öz-dikkat (Vision Transformer) | 3B kaydırılmış pencereli öz-dikkat kodlayıcı + CNN çözücü | ~15.7 M |
-| M3 | **MedNeXt-S (k=3)** | Modern evrişim (ConvNeXt tasarımı) | Dikkat olmadan Transformer tasarım ilkeleri: derinlemesine evrişim, ters darboğaz MLP | ~5.6 M |
+| M1 | **Residual 3D U-Net** [[6]](#k6) [[7]](#k7) | Klasik yerel evrişim (CNN) | Residual birimler, 3×3×3 evrişim | ~4.8 M |
+| M2 | **SwinUNETR** [[8]](#k8) | Hiyerarşik öz-dikkat (Vision Transformer) | 3B kaydırılmış pencereli öz-dikkat kodlayıcı + CNN çözücü | ~15.7 M |
+| M3 | **MedNeXt-S (k=3)** [[9]](#k9) | Modern evrişim (ConvNeXt tasarımı) | Dikkat olmadan Transformer tasarım ilkeleri: derinlemesine evrişim, ters darboğaz MLP | ~5.6 M |
 
 Üçüncü model, liderlik tablosu skoruna göre değil; dört adayın belgelenmiş ve ölçülmüş karşılaştırmasıyla seçildi: [docs/UCUNCU_MODEL_SECIMI.md](docs/UCUNCU_MODEL_SECIMI.md).
 
@@ -60,6 +61,24 @@ Glioma segmentasyonu radyoterapi planlamasının, cerrahi sınırların ve hacim
 - **Harici doğrulama.** Kilitli sistem, hiçbir ayar yeniden seçilmeden, iki bağımsız kurumun (Nijerya ve ABD) verisinde tek seferde sınandı.
 
 **Bölgeler:** WT = NCR ∪ ED ∪ ET · TC = NCR ∪ ET · ET = ET.
+
+## Tasarım kararları ve gerekçeleri
+
+Her önemli karar için ne yapıldığı, neden yapıldığı ve neye dayandığı. Köşeli parantezler [Kaynaklar](#veri-setleri-ve-kaynaklar) bölümündeki numaralara bağlıdır.
+
+| # | Karar | Neden | Dayanak |
+|:---:|---|---|---|
+| 1 | BraTS 2021 ile eğitim, iki bağımsız kurumda sınama | BraTS alanın standart karşılaştırma ölçütüdür; ama tek veri setindeki skor genellemeyi göstermez. Farklı saha gücü (1.5 T) ve farklı etiketleme kuralları gerçek bir alan kaymasını sınar | [[1]](#k1) [[2]](#k2) [[3]](#k3) [[4]](#k4) [[5]](#k5) |
+| 2 | Üç farklı tasarım paradigmasından üç model | Ensemble'ın faydası modellerin *farklı* hatalar yapmasından gelir. BraTS 2023/2024 ve BraTS-Africa 2024 birincileri farklı ailelerden modelleri birleştirdi | [[11]](#k11) [[13]](#k13) [[14]](#k14) |
+| 3 | Üçüncü model MedNeXt-S (k=3) | Dört aday kendi donanımımızda ölçülerek karşılaştırıldı. MedNeXt, dikkat kullanmadan Transformer tasarım ilkelerini evrişimle uygular; böylece "fayda dikkat mekanizmasından mı, tasarım ilkelerinden mi geliyor?" sorusu sınanabilir. BraTS 2021'de en yüksek raporlanan skorlar ve SSA verisinde kanıt; S boyutu eğitim bütçesi ve web süresi için | [[9]](#k9) [[11]](#k11) [[14]](#k14) · [model seçimi](docs/UCUNCU_MODEL_SECIMI.md) |
+| 4 | Üç modele birebir aynı eğitim protokolü | Mimari karşılaştırmalar çoğu zaman farklı reçetelerle yapılır; fark mimariden mi, reçeteden mi geliyor belirsizleşir. Yalnız bir mimariye fayda sağlayan ayarlar bilerek alınmadı | [[11]](#k11) |
+| 5 | Ön-kayıt, seçimler yalnız validation'da, test tek sefer | Ayarları test üzerinde seçmek iyimser (şişirilmiş) sonuç üretir. Plan ve seçimler sonuçtan önce yazılıp mühürlenince sayılar savunulabilir olur | [[11]](#k11) · [değerlendirme yöntemi](docs/DEGERLENDIRME_YONTEMI.md) |
+| 6 | Ensemble yöntemi, ayna TTA ve küçük ET temizleme yalnız *aday*; kanıtla seçildi | Bu tekniklerin BraTS'te yaklaşık 0.3–1 Dice puanı kazandırabildiği gösterilmiştir; ama kazanç garanti değildir. Hepsi üç modele eşit uygulandı ve önceden yazılmış kuralla validation'da seçildi | [[12]](#k12) |
+| 7 | Modeller arası uyum skoru | Klinik kullanımda referans maske yoktur. Modellerin birbiriyle anlaşmaması olası hatanın işareti olabilir. Ön-kayıtlı "başarısız vaka" tanımıyla (Dice < 0.80) AUROC ile sınandı | bu proje · [Sonuçlar](#sonuçlar) |
+| 8 | Holm düzeltmeli eşleştirilmiş Wilcoxon + bootstrap güven aralığı | Aynı hastalar üzerinde, normal dağılım varsaymayan karşılaştırma; çoklu karşılaştırmada yanlış pozitif riskini sınırlar | standart istatistik |
+| 9 | Ön işleme ve etiket kararı tek bir çekirdekte | Eğitim ile çıkarım arasındaki küçük bir fark sessiz doğruluk kaybı yaratır; tek kaynak ve parite testleri bunu önler. Ön işlemenin kendisi alanın yerleşik uygulamasını izler (sıfır olmayan voksellerde Z-skor normalizasyonu, ön plan kırpma; MONAI dönüşümleriyle) | [[10]](#k10) [[15]](#k15) |
+| 10 | CPU'da OpenVINO, parite denetimiyle | GPU'su olmayan iş istasyonlarında da kabul edilebilir süre; hızlandırma sonucu değiştirmemeli (etiket uyumu ≥ 0.9999997) | [[16]](#k16) |
+| 11 | Çekirdek ve ağırlıklar private | Araştırma sürüyor (makale hazırlanıyor). Bu depo yöntemi, mühendisliği ve sonuçları gösterir; bilimsel çekirdek paylaşılmaz | — |
 
 ## Sonuçlar
 
@@ -168,21 +187,32 @@ Ayrıntı: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · REST API: [docs/API_E
 
 ## Veri setleri ve kaynaklar
 
+Harici kohortlar, aşağıdaki koleksiyonların Kaggle'daki kamuya açık kopyaları üzerinden çalıştırıldı. Bu depoda hiçbir görüntü verisi yoktur.
+
 **Veri setleri**
 
-1. **BraTS 2021** — Baid, U., vd. (2021). *The RSNA-ASNR-MICCAI BraTS 2021 Benchmark on Brain Tumor Segmentation and Radiogenomic Classification.* [arXiv:2107.02314](https://arxiv.org/abs/2107.02314). · Menze, B. H., vd. (2015). *The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS).* IEEE TMI 34(10). · Bakas, S., vd. (2017). *Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features.* Scientific Data 4, 170117.
-2. **BraTS-Africa** — Adewole, M., vd. (2023). *The BraTS Challenge 2023: Glioma Segmentation in Sub-Saharan Africa Patient Population (BraTS-Africa).* [arXiv:2305.19369](https://arxiv.org/abs/2305.19369). TCIA, doi:[10.7937/v8h6-8x67](https://doi.org/10.7937/v8h6-8x67).
-3. **UTSW-Glioma** — Reddy, D., vd. (2026). *UTSW-Glioma (Version 1)* [Veri seti]. The Cancer Imaging Archive, doi:[10.7937/DFAE-1B86](https://doi.org/10.7937/DFAE-1B86).
+1. <a id="k1"></a>Baid, U., vd. (2021). *The RSNA-ASNR-MICCAI BraTS 2021 Benchmark on Brain Tumor Segmentation and Radiogenomic Classification.* [arXiv:2107.02314](https://arxiv.org/abs/2107.02314). — eğitim, validation ve iç test verisi.
+2. <a id="k2"></a>Menze, B. H., vd. (2015). *The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS).* IEEE Transactions on Medical Imaging 34(10), 1993–2024. — BraTS ölçütü ve bölge tanımları.
+3. <a id="k3"></a>Bakas, S., vd. (2017). *Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features.* Scientific Data 4, 170117. — BraTS uzman etiketleri.
+4. <a id="k4"></a>Adewole, M., vd. (2023). *The BraTS Challenge 2023: Glioma Segmentation in Sub-Saharan Africa Patient Population (BraTS-Africa).* [arXiv:2305.19369](https://arxiv.org/abs/2305.19369). TCIA, doi:[10.7937/v8h6-8x67](https://doi.org/10.7937/v8h6-8x67). — 1. harici kohort (Nijerya, 1.5 T).
+5. <a id="k5"></a>Reddy, D., vd. (2026). *UTSW-Glioma (Version 1)* [Veri seti]. The Cancer Imaging Archive, doi:[10.7937/DFAE-1B86](https://doi.org/10.7937/DFAE-1B86). — 2. harici kohort (ABD).
 
-Harici kohortlar, bu koleksiyonların Kaggle'daki kamuya açık kopyaları üzerinden çalıştırıldı. Bu depoda hiçbir görüntü verisi yoktur.
+**Modeller ve yöntemler**
 
-**Yöntemler ve yazılım**
+6. <a id="k6"></a>Ronneberger, O., Fischer, P., & Brox, T. (2015). *U-Net: Convolutional Networks for Biomedical Image Segmentation.* MICCAI, LNCS 9351. — M1'in temeli.
+7. <a id="k7"></a>Kerfoot, E., vd. (2018). *Left-Ventricle Quantification Using Residual U-Net.* STACOM. — M1'deki residual U-Net yapısı.
+8. <a id="k8"></a>Hatamizadeh, A., vd. (2022). *Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in MRI Images.* BrainLes 2021, LNCS 12962. [arXiv:2201.01266](https://arxiv.org/abs/2201.01266). — M2.
+9. <a id="k9"></a>Roy, S., vd. (2023). *MedNeXt: Transformer-driven Scaling of ConvNets for Medical Image Segmentation.* MICCAI. [arXiv:2303.09975](https://arxiv.org/abs/2303.09975). — M3.
+10. <a id="k10"></a>Isensee, F., vd. (2021). *nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation.* Nature Methods 18(2), 203–211. — ön işleme ve değerlendirme alışkanlıkları.
+11. <a id="k11"></a>Isensee, F., vd. (2024). *nnU-Net Revisited: A Call for Rigorous Validation in 3D Medical Image Segmentation.* MICCAI. [arXiv:2404.09556](https://arxiv.org/abs/2404.09556). — adil karşılaştırma ve titiz doğrulama gerekçesi; BraTS 2021 mimari karşılaştırması.
+12. <a id="k12"></a>Isensee, F., vd. (2021). *nnU-Net for Brain Tumor Segmentation.* BrainLes 2020, LNCS 12659. [arXiv:2011.00848](https://arxiv.org/abs/2011.00848). — TTA ve küçük ET temizlemenin aday olarak seçilmesi.
+13. <a id="k13"></a>Ferreira, A., vd. (2024). *How we won BraTS 2023 Adult Glioma challenge? Just faking it!* [arXiv:2402.17317](https://arxiv.org/abs/2402.17317). — farklı ailelerden modellerin ensemble'ı.
+14. <a id="k14"></a>*Optimizing Brain Tumor Segmentation with MedNeXt: BraTS 2024 SSA and Pediatrics* (2024). [arXiv:2411.15872](https://arxiv.org/abs/2411.15872). — MedNeXt'in SSA verisindeki kanıtı.
 
-- Ronneberger, O., vd. (2015). *U-Net.* MICCAI · Kerfoot, E., vd. (2018). *Left-Ventricle Quantification Using Residual U-Net.* STACOM.
-- Hatamizadeh, A., vd. (2022). *Swin UNETR.* BrainLes 2021. [arXiv:2201.01266](https://arxiv.org/abs/2201.01266).
-- Roy, S., vd. (2023). *MedNeXt.* MICCAI. [arXiv:2303.09975](https://arxiv.org/abs/2303.09975).
-- Isensee, F., vd. (2021). *nnU-Net.* Nature Methods 18 · Isensee, F., vd. (2024). *nnU-Net Revisited.* MICCAI. [arXiv:2404.09556](https://arxiv.org/abs/2404.09556).
-- Cardoso, M. J., vd. (2022). *MONAI.* [arXiv:2211.02701](https://arxiv.org/abs/2211.02701) · Intel *OpenVINO™ Toolkit* · PyTorch · FastAPI.
+**Yazılım**
+
+15. <a id="k15"></a>Cardoso, M. J., vd. (2022). *MONAI: An open-source framework for deep learning in healthcare.* [arXiv:2211.02701](https://arxiv.org/abs/2211.02701). — model uygulamaları ve veri dönüşümleri; PyTorch ve FastAPI ile.
+16. <a id="k16"></a>Intel. *OpenVINO™ Toolkit.* [github.com/openvinotoolkit/openvino](https://github.com/openvinotoolkit/openvino). — CPU çıkarımı.
 
 ## Geliştirici
 

@@ -4,15 +4,15 @@ Bu depo, NeuroVista ana projesinden (private) izin listesiyle otomatik üretilmi
 Dosyalar elle kopyalanmaz; ana depodaki `tools/export_public.py` belirtilen commit'ten üretir.
 
 - Kaynak depo: kilicchalitt/brain-tumor-segmentation (private)
-- Kaynak commit: `4803deabe499b4f5ea1ece9cd591f92018603b0c` (2026-10-23)
+- Kaynak commit: `009645bd9efd1b6720b05045497ddf15aa73ae5e` (2026-10-24)
 - Dosya sayısı: 46
 
 | Dosya | SHA-256 (ilk 12) |
 |---|---|
 | `.github/workflows/ci.yml` | `1e8cb1674711` |
 | `LICENSE` | `a281d23cd308` |
-| `README.en.md` | `70a8e13d86ef` |
-| `README.md` | `cea18fa2f65a` |
+| `README.en.md` | `e60e5d758cb8` |
+| `README.md` | `a18a590ad4a5` |
 | `backend/app/api/access.py` | `776e58b16858` |
 | `backend/app/api/analysis.py` | `124efc2a58af` |
 | `backend/app/api/errors.py` | `e34138a4da29` |

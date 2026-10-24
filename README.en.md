@@ -25,6 +25,7 @@ NeuroVista segments glioma sub-regions — necrotic core (**NCR**), peritumoral 
 
 - [The problem](#the-problem)
 - [Approach](#approach)
+- [Design decisions and rationale](#design-decisions-and-rationale)
 - [Results](#results)
 - [System architecture](#system-architecture)
 - [What is in this repository](#what-is-in-this-repository)
@@ -48,9 +49,9 @@ Glioma segmentation drives radiotherapy planning, surgical margins and volumetri
 
 | Code | Model | Paradigm | Building block | Parameters |
 |:---:|---|---|---|:---:|
-| M1 | **Residual 3D U-Net** | Classical local convolution (CNN) | Residual units, 3×3×3 convolutions | ~4.8 M |
-| M2 | **SwinUNETR** | Hierarchical self-attention (Vision Transformer) | 3D shifted-window self-attention encoder + CNN decoder | ~15.7 M |
-| M3 | **MedNeXt-S (k=3)** | Modern convolution (ConvNeXt design) | Transformer design principles without attention: depthwise convolution, inverted-bottleneck MLP | ~5.6 M |
+| M1 | **Residual 3D U-Net** [[6]](#r6) [[7]](#r7) | Classical local convolution (CNN) | Residual units, 3×3×3 convolutions | ~4.8 M |
+| M2 | **SwinUNETR** [[8]](#r8) | Hierarchical self-attention (Vision Transformer) | 3D shifted-window self-attention encoder + CNN decoder | ~15.7 M |
+| M3 | **MedNeXt-S (k=3)** [[9]](#r9) | Modern convolution (ConvNeXt design) | Transformer design principles without attention: depthwise convolution, inverted-bottleneck MLP | ~5.6 M |
 
 The third model was chosen by a documented, measured comparison of four candidates rather than by leaderboard score: [docs/UCUNCU_MODEL_SECIMI.md](docs/UCUNCU_MODEL_SECIMI.md) (in Turkish).
 
@@ -60,6 +61,24 @@ The third model was chosen by a documented, measured comparison of four candidat
 - **External validation.** The locked system was then tested once, with nothing re-tuned, on two independent institutions (Nigeria and the United States).
 
 **Regions:** WT = NCR ∪ ED ∪ ET · TC = NCR ∪ ET · ET = ET.
+
+## Design decisions and rationale
+
+For each important decision: what was done, why, and what it rests on. Bracketed numbers link to [References](#datasets-and-references).
+
+| # | Decision | Why | Basis |
+|:---:|---|---|---|
+| 1 | Train on BraTS 2021, test on two independent institutions | BraTS is the field's standard benchmark, but a score on one dataset does not show generalization. Different field strength (1.5 T) and different labelling conventions test a real domain shift | [[1]](#r1) [[2]](#r2) [[3]](#r3) [[4]](#r4) [[5]](#r5) |
+| 2 | Three models from three design paradigms | An ensemble helps because its members make *different* mistakes. The BraTS 2023/2024 and BraTS-Africa 2024 winners combined models from different families | [[11]](#r11) [[13]](#r13) [[14]](#r14) |
+| 3 | MedNeXt-S (k=3) as the third model | Four candidates were measured on our own hardware. MedNeXt applies Transformer design principles with convolutions and no attention, so it tests whether the benefit comes from attention or from the design principles. Highest reported BraTS 2021 scores and evidence on SSA data; the S size fits the training budget and web latency | [[9]](#r9) [[11]](#r11) [[14]](#r14) · [model selection](docs/UCUNCU_MODEL_SECIMI.md) |
+| 4 | One identical training protocol for all three | Architecture comparisons often use different recipes, so it becomes unclear whether a difference comes from the architecture or the recipe. Settings that would favour only one architecture were deliberately left out | [[11]](#r11) |
+| 5 | Pre-registration, selection on validation only, test used once | Tuning on the test set produces optimistic (inflated) results. Writing and sealing the plan and the selections before any result makes the numbers defensible | [[11]](#r11) · [evaluation method](docs/DEGERLENDIRME_YONTEMI.md) |
+| 6 | Ensemble method, mirror TTA and small-ET removal treated as *candidates*, chosen on evidence | These techniques have been shown to add roughly 0.3–1 Dice point on BraTS, but the gain is not guaranteed. All were applied equally to the three models and chosen on validation by a pre-written rule | [[12]](#r12) |
+| 7 | Inter-model agreement score | In clinical use there is no reference mask. Disagreement between models can signal a likely error. Tested with a pre-registered failure definition (Dice < 0.80) via AUROC | this project · [Results](#results) |
+| 8 | Paired Wilcoxon with Holm correction + bootstrap confidence intervals | Paired comparison on the same patients without assuming normality; limits false positives across multiple comparisons | standard statistics |
+| 9 | Pre-processing and label decision in one core | A small difference between training and inference causes silent accuracy loss; a single source plus parity tests prevent it. The pre-processing itself follows established practice (z-score normalization over non-zero voxels, foreground cropping; with MONAI transforms) | [[10]](#r10) [[15]](#r15) |
+| 10 | OpenVINO on CPU, with a parity check | Acceptable latency on workstations without a GPU; acceleration must not change the result (label agreement ≥ 0.9999997) | [[16]](#r16) |
+| 11 | Core and weights kept private | The research is ongoing (manuscript in preparation). This repository shows the method, the engineering and the results; the scientific core is not shared | — |
 
 ## Results
 
@@ -168,21 +187,32 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · REST API: [docs/API_END
 
 ## Datasets and references
 
+External cohorts were run from publicly available copies of the collections below on Kaggle. No imaging data is included in this repository.
+
 **Datasets**
 
-1. **BraTS 2021** — Baid, U., et al. (2021). *The RSNA-ASNR-MICCAI BraTS 2021 Benchmark on Brain Tumor Segmentation and Radiogenomic Classification.* [arXiv:2107.02314](https://arxiv.org/abs/2107.02314). · Menze, B. H., et al. (2015). *The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS).* IEEE TMI 34(10). · Bakas, S., et al. (2017). *Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features.* Scientific Data 4, 170117.
-2. **BraTS-Africa** — Adewole, M., et al. (2023). *The BraTS Challenge 2023: Glioma Segmentation in Sub-Saharan Africa Patient Population (BraTS-Africa).* [arXiv:2305.19369](https://arxiv.org/abs/2305.19369). TCIA, doi:[10.7937/v8h6-8x67](https://doi.org/10.7937/v8h6-8x67).
-3. **UTSW-Glioma** — Reddy, D., et al. (2026). *UTSW-Glioma (Version 1)* [Data set]. The Cancer Imaging Archive, doi:[10.7937/DFAE-1B86](https://doi.org/10.7937/DFAE-1B86).
+1. <a id="r1"></a>Baid, U., et al. (2021). *The RSNA-ASNR-MICCAI BraTS 2021 Benchmark on Brain Tumor Segmentation and Radiogenomic Classification.* [arXiv:2107.02314](https://arxiv.org/abs/2107.02314). — training, validation and internal test data.
+2. <a id="r2"></a>Menze, B. H., et al. (2015). *The Multimodal Brain Tumor Image Segmentation Benchmark (BRATS).* IEEE Transactions on Medical Imaging 34(10), 1993–2024. — BraTS benchmark and region definitions.
+3. <a id="r3"></a>Bakas, S., et al. (2017). *Advancing The Cancer Genome Atlas glioma MRI collections with expert segmentation labels and radiomic features.* Scientific Data 4, 170117. — BraTS expert labels.
+4. <a id="r4"></a>Adewole, M., et al. (2023). *The BraTS Challenge 2023: Glioma Segmentation in Sub-Saharan Africa Patient Population (BraTS-Africa).* [arXiv:2305.19369](https://arxiv.org/abs/2305.19369). TCIA, doi:[10.7937/v8h6-8x67](https://doi.org/10.7937/v8h6-8x67). — external cohort 1 (Nigeria, 1.5 T).
+5. <a id="r5"></a>Reddy, D., et al. (2026). *UTSW-Glioma (Version 1)* [Data set]. The Cancer Imaging Archive, doi:[10.7937/DFAE-1B86](https://doi.org/10.7937/DFAE-1B86). — external cohort 2 (USA).
 
-External cohorts were run from publicly available copies of these collections on Kaggle. No imaging data is included in this repository.
+**Models and methods**
 
-**Methods and software**
+6. <a id="r6"></a>Ronneberger, O., Fischer, P., & Brox, T. (2015). *U-Net: Convolutional Networks for Biomedical Image Segmentation.* MICCAI, LNCS 9351. — basis of M1.
+7. <a id="r7"></a>Kerfoot, E., et al. (2018). *Left-Ventricle Quantification Using Residual U-Net.* STACOM. — residual U-Net structure of M1.
+8. <a id="r8"></a>Hatamizadeh, A., et al. (2022). *Swin UNETR: Swin Transformers for Semantic Segmentation of Brain Tumors in MRI Images.* BrainLes 2021, LNCS 12962. [arXiv:2201.01266](https://arxiv.org/abs/2201.01266). — M2.
+9. <a id="r9"></a>Roy, S., et al. (2023). *MedNeXt: Transformer-driven Scaling of ConvNets for Medical Image Segmentation.* MICCAI. [arXiv:2303.09975](https://arxiv.org/abs/2303.09975). — M3.
+10. <a id="r10"></a>Isensee, F., et al. (2021). *nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation.* Nature Methods 18(2), 203–211. — pre-processing and evaluation practice.
+11. <a id="r11"></a>Isensee, F., et al. (2024). *nnU-Net Revisited: A Call for Rigorous Validation in 3D Medical Image Segmentation.* MICCAI. [arXiv:2404.09556](https://arxiv.org/abs/2404.09556). — rationale for fair comparison and rigorous validation; BraTS 2021 architecture comparison.
+12. <a id="r12"></a>Isensee, F., et al. (2021). *nnU-Net for Brain Tumor Segmentation.* BrainLes 2020, LNCS 12659. [arXiv:2011.00848](https://arxiv.org/abs/2011.00848). — why TTA and small-ET removal were considered as candidates.
+13. <a id="r13"></a>Ferreira, A., et al. (2024). *How we won BraTS 2023 Adult Glioma challenge? Just faking it!* [arXiv:2402.17317](https://arxiv.org/abs/2402.17317). — ensembles of different model families.
+14. <a id="r14"></a>*Optimizing Brain Tumor Segmentation with MedNeXt: BraTS 2024 SSA and Pediatrics* (2024). [arXiv:2411.15872](https://arxiv.org/abs/2411.15872). — evidence for MedNeXt on SSA data.
 
-- Ronneberger, O., et al. (2015). *U-Net.* MICCAI · Kerfoot, E., et al. (2018). *Left-Ventricle Quantification Using Residual U-Net.* STACOM.
-- Hatamizadeh, A., et al. (2022). *Swin UNETR.* BrainLes 2021. [arXiv:2201.01266](https://arxiv.org/abs/2201.01266).
-- Roy, S., et al. (2023). *MedNeXt.* MICCAI. [arXiv:2303.09975](https://arxiv.org/abs/2303.09975).
-- Isensee, F., et al. (2021). *nnU-Net.* Nature Methods 18 · Isensee, F., et al. (2024). *nnU-Net Revisited.* MICCAI. [arXiv:2404.09556](https://arxiv.org/abs/2404.09556).
-- Cardoso, M. J., et al. (2022). *MONAI.* [arXiv:2211.02701](https://arxiv.org/abs/2211.02701) · Intel *OpenVINO™ Toolkit* · PyTorch · FastAPI.
+**Software**
+
+15. <a id="r15"></a>Cardoso, M. J., et al. (2022). *MONAI: An open-source framework for deep learning in healthcare.* [arXiv:2211.02701](https://arxiv.org/abs/2211.02701). — model implementations and data transforms; with PyTorch and FastAPI.
+16. <a id="r16"></a>Intel. *OpenVINO™ Toolkit.* [github.com/openvinotoolkit/openvino](https://github.com/openvinotoolkit/openvino). — CPU inference.
 
 ## Author
 
