@@ -4,7 +4,7 @@ Bu depo, NeuroVista ana projesinden (private) izin listesiyle otomatik üretilmi
 Dosyalar elle kopyalanmaz; ana depodaki `tools/export_public.py` belirtilen commit'ten üretir.
 
 - Kaynak depo: kilicchalitt/neurovista (private)
-- Kaynak commit: `eb68df7a0f87567ce838f1bf11fee247b83a3db1` (2026-10-24)
+- Kaynak commit: `8e879ee3821477865532c01ab3e85a5c7dbcf3ce` (2026-10-28)
 - Dosya sayısı: 46
 
 | Dosya | SHA-256 (ilk 12) |
@@ -13,7 +13,7 @@ Dosyalar elle kopyalanmaz; ana depodaki `tools/export_public.py` belirtilen comm
 | `LICENSE` | `a281d23cd308` |
 | `README.en.md` | `e60e5d758cb8` |
 | `README.md` | `a18a590ad4a5` |
-| `backend/app/api/access.py` | `776e58b16858` |
+| `backend/app/api/access.py` | `980b2cc15425` |
 | `backend/app/api/analysis.py` | `124efc2a58af` |
 | `backend/app/api/errors.py` | `e34138a4da29` |
 | `backend/app/api/export.py` | `7b90cc8d6feb` |

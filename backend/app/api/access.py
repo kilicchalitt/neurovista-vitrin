@@ -4,6 +4,7 @@ Akış: kullanıcı bir kez ``/?token=<belirteç>`` ile gelir; belirteç HttpOnl
 çubuğundan silinmek üzere aynı sayfaya yönlendirilir. Sonraki istekler (sayfalar, görüntüler, API)
 çerezle geçer; programlar ``Authorization: Bearer <belirteç>`` başlığını kullanabilir.
 ``/api/v1/health`` konteyner sağlık denetimi için açık kalır. Karşılaştırma sabit zamanlıdır.
+İstek HTTPS ile geldiyse (ters vekil arkasında ``X-Forwarded-Proto``) çerez ``Secure`` işaretlenir: düz HTTP'ye gönderilmez.
 """
 from __future__ import annotations
 
@@ -31,7 +32,8 @@ def register(app: FastAPI) -> None:
         query_token = request.query_params.get("token")
         if query_token is not None and _matches(query_token, token):
             response = RedirectResponse(str(request.url.remove_query_params("token")), status_code=303)
-            response.set_cookie(settings.ACCESS_COOKIE, token, httponly=True, samesite="strict")
+            response.set_cookie(settings.ACCESS_COOKIE, token, httponly=True, samesite="strict",
+                                secure=request.url.scheme == "https")
             return response
         bearer = request.headers.get("authorization", "")
         supplied = request.cookies.get(settings.ACCESS_COOKIE) or (bearer[7:] if bearer.lower().startswith("bearer ") else None)
